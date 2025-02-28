@@ -1,0 +1,25 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  scraper:
+    build: .
+    container_name: job_scraper
+    volumes:
+      - ./job_data:/app/job_data
+      - ./config:/app/config
+    environment:
+      - SCRAPER_ENV=production
+      - TZ=UTC
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"

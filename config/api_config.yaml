@@ -1,0 +1,122 @@
+api:
+  base_url: "https://api.karbord.io/api/v1/Candidate/JobPost/GetList"
+  headers:
+    accept: "application/json, text/plain, */*"
+    accept-encoding: "gzip, deflate, br, zstd"
+    accept-language: "en-US,en;q=0.9"
+    clientid: "4558668"
+    content-type: "application/json"
+    ngsw-bypass: "true"
+    origin: "https://karbord.io"
+    referer: "https://karbord.io/"
+    sec-ch-ua: '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"'
+    sec-ch-ua-mobile: "?0"
+    sec-ch-ua-platform: '"Windows"'
+    sec-fetch-dest: "empty"
+    sec-fetch-mode: "cors"
+    sec-fetch-site: "same-site"
+    user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+
+request:
+  default_payload:
+    isInternship: false
+    isRemote: false
+    location: null
+    publishDate: null
+    workType: null
+    pageSize: 100
+    sort: 0
+    searchId: null
+    jobPostCategories: []
+    jobBoardIds: []
+    hasNoWorkExperienceRequirement: false
+    clientId: 4558668
+    page: 1
+    nextPageToken: null
+
+scraper:
+  # Core scraping parameters
+  batch_size: 100  # API limit per request
+  jobs_per_batch: 1000  # Number of jobs to accumulate before saving
+  max_pages: 9000  # Maximum pages to scrape
+  chunk_size: 1000  # Size of job chunks for processing
+  
+  # Performance and resource settings
+  memory_limit: 1024  # Maximum memory usage in MB
+  max_concurrent_requests: 5  # Number of concurrent requests
+  timeout: 60  # Request timeout in seconds
+  
+  # Timing and rate limiting
+  sleep_time: 0.5  # Base delay between requests
+  rate_limit:
+    requests_per_minute: 120
+    burst: 10  # Maximum burst requests
+    
+  # Error handling and retry logic
+  max_retries: 5  # Maximum number of retry attempts
+  retry_delay:
+    min: 2  # Minimum retry delay in seconds
+    max: 10  # Maximum retry delay in seconds
+    
+  # New job detection and resume settings
+  lookback_pages: 5  # Number of pages to look back when resuming
+  minimum_pages: 10  # Minimum pages to check before considering stopping
+  max_empty_pages: 3  # Maximum consecutive empty pages before stopping
+  max_resume_age: 86400  # Maximum age (in seconds) of previous state to resume from
+  
+  # State management
+  state_tracking:
+    enabled: true
+    save_interval: 300  # Save state every 5 minutes
+    backup_count: 3  # Number of state backups to keep
+    
+  # Timestamp handling
+  timestamp_settings:
+    format: "%Y-%m-%dT%H:%M:%S.%fZ"  # Expected timestamp format
+    timezone: "UTC"
+    
+  # Job deduplication
+  deduplication:
+    enabled: true
+    method: "id_based"  # Can be 'id_based' or 'content_based'
+    cache_size: 10000  # Number of job IDs to keep in memory
+    
+  # Monitoring and logging
+  monitoring:
+    enabled: true
+    metrics:
+      - new_jobs_count
+      - processing_time
+      - memory_usage
+      - request_latency
+    alert_thresholds:
+      max_errors_per_minute: 10
+      max_memory_percent: 90
+      max_latency_ms: 5000
+      
+  # Data validation
+  validation:
+    enabled: true
+    required_fields:
+      - id
+      - title
+      - posted_at
+    
+  # Output settings
+  output:
+    format: "json"
+    compression: true
+    batch_prefix: "batch_"
+    timestamp_format: "%Y%m%d_%H%M%S"
+    
+  # Clean up settings
+  cleanup:
+    enabled: true
+    max_age_days: 7  # Remove temporary files older than 7 days
+    keep_last_n_batches: 50  # Always keep the last 50 batches
+    
+  # Debug settings
+  debug:
+    enabled: false
+    verbose_logging: false
+    save_raw_responses: false
