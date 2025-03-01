@@ -1,14 +1,13 @@
 """
 log_setup.py
-
 Centralized logging configuration to be used by all modules in the Job Scraper project.
 """
-
 import logging
 import sys
 from pathlib import Path
 from datetime import datetime
 import os
+
 
 def get_logger(
     name: str = "job_scraper",

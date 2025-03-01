@@ -14,6 +14,7 @@ from .config_manager import ConfigManager
 from .db_manager import DatabaseManager
 from .log_setup import get_logger
 
+
 class JobScraper:
     """
     Asynchronous job scraper that fetches job listings from a specified API,
@@ -31,18 +32,18 @@ class JobScraper:
 
         Args:
             config_path (str): Path to the YAML config file.
-            save_dir (str): Directory to store data and logs.
+            save_dir (str): Directory to store data and logs (only used if saving locally).
             db_manager (Optional[DatabaseManager]): If provided, use this manager for DB operations.
         """
         self.logger = get_logger("JobScraper")
 
-        # Load configuration
+        # Load configuration (YAML + environment overrides)
         self.config_manager = ConfigManager(config_path)
         self.api_config: Dict[str, Any] = self.config_manager.api_config
         self.request_config: Dict[str, Any] = self.config_manager.request_config
         self.scraper_config: Dict[str, Any] = self.config_manager.scraper_config
 
-        # Setup directories
+        # Setup directories (if local saving is needed)
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.raw_dir = self.save_dir / "raw_data"
@@ -51,11 +52,12 @@ class JobScraper:
         for d in [self.raw_dir, self.processed_dir, self.log_dir]:
             d.mkdir(parents=True, exist_ok=True)
 
-        # Database integration
+        # Database usage config
         database_cfg = self.scraper_config.get("database", {})
         self.db_enabled = database_cfg.get("enabled", False)
         self.db_manager = db_manager
         if self.db_enabled and not self.db_manager:
+            # If the database is enabled but no db_manager was passed, create one
             self.logger.info("Database integration enabled but no manager provided; creating one.")
             db_config = self.config_manager.database_config
             self.db_manager = DatabaseManager(
@@ -64,20 +66,23 @@ class JobScraper:
                 batch_size=db_config.get("batch_size", 1000),
             )
 
-        # API base
+        # API base URL + request headers
         self.base_url: str = self.api_config["base_url"]
         self.headers: Dict[str, str] = self.api_config["headers"]
 
-        # Tracking
+        # Tracking counters
         self.current_batch: int = 0
         self.total_jobs_scraped: int = 0
         self.failed_requests: List[int] = []
 
-        # Concurrency
+        # Concurrency limit for HTTP requests
         max_concurrent = self.scraper_config.get("max_concurrent_requests", 3)
         self.semaphore = asyncio.Semaphore(max_concurrent)
 
-        self.logger.info("JobScraper initialized successfully.")
+        self.logger.info(
+            "JobScraper initialized successfully. Database Enabled? "
+            f"{self.db_enabled}"
+        )
 
     async def initialize(self) -> bool:
         """
@@ -91,6 +96,7 @@ class JobScraper:
                 self.logger.info("Initializing database connection (JobScraper)...")
                 success = await self.db_manager.initialize()
                 if not success:
+                    # If DB fails, we fallback to local file saving
                     self.logger.warning("DB initialization failed, falling back to file storage.")
                     self.db_enabled = False
             return True
@@ -120,18 +126,21 @@ class JobScraper:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def fetch_jobs(
-        self, session: aiohttp.ClientSession, json_body: Dict[str, Any], page: int
+        self,
+        session: aiohttp.ClientSession,
+        json_body: Dict[str, Any],
+        page: int
     ) -> Optional[Dict[str, Any]]:
         """
-        Fetch jobs from the API with retry logic.
+        Fetch jobs from the API with retry logic using tenacity.
 
         Args:
             session (aiohttp.ClientSession): Shared session for HTTP requests.
-            json_body (Dict[str, Any]): POST body JSON.
+            json_body (Dict[str, Any]): POST body JSON for the request.
             page (int): The page number being fetched.
 
         Returns:
-            Optional[Dict[str, Any]]: Parsed JSON data if successful, otherwise None.
+            Optional[Dict[str, Any]]: Parsed JSON data if successful, else None.
         """
         async with self.semaphore:
             async with session.post(
@@ -150,7 +159,7 @@ class JobScraper:
 
     async def process_jobs(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Validate each job. We rely on DB upsert for deduplication.
+        Validate each job before insertion. Rely on DB upsert for deduplication.
 
         Args:
             jobs (List[Dict[str, Any]]): Raw job data from the API.
@@ -161,6 +170,7 @@ class JobScraper:
         processed = []
         for job in jobs:
             try:
+                # Basic required fields check
                 if not all(k in job for k in ("id", "title", "activationTime")):
                     self.logger.warning(
                         f"Skipping invalid job: {job.get('id', 'unknown')} - missing required fields"
@@ -174,30 +184,34 @@ class JobScraper:
 
     async def _process_jobs(self, jobs: List[Dict[str, Any]]) -> int:
         """
-        Insert or upsert job data into DB (if enabled) or save them to file.
+        Insert or upsert job data into the DB if enabled, otherwise save them to file if configured.
 
         Args:
             jobs (List[Dict[str, Any]]): Valid job dictionaries to store.
 
         Returns:
-            int: Number of jobs successfully processed.
+            int: Number of jobs successfully processed (upserted or saved).
         """
         if not jobs:
             return 0
 
         try:
             batch_id = str(uuid.uuid4())
+
+            # If DB enabled, attempt saving to DB
             if self.db_enabled and self.db_manager:
-                self.logger.info(f"Saving {len(jobs)} jobs to DB, batch_id={batch_id}")
+                self.logger.info(f"Saving {len(jobs)} jobs to DB in batch_id={batch_id}")
                 inserted_count = await self.db_manager.insert_jobs(jobs, batch_id)
-                self.logger.info(f"Finished DB upsert for {inserted_count} jobs, batch {batch_id}")
+                self.logger.info(
+                    f"DB upsert complete: {inserted_count} jobs inserted/updated for batch {batch_id}"
+                )
 
                 # If database saving was successful, skip file saving if config demands
                 if inserted_count > 0 and not self.config_manager.should_save_files_with_db():
-                    self.logger.info("All jobs saved to DB, skipping file-based storage.")
+                    self.logger.info("All jobs saved to DB; skipping file-based storage.")
                     return inserted_count
 
-            # Otherwise, save the batch to local files
+            # If DB is not enabled OR we want to keep local backups, save to file
             self.save_batch(jobs, self.current_batch)
             self.current_batch += 1
             return len(jobs)
@@ -207,7 +221,8 @@ class JobScraper:
 
     def save_batch(self, jobs: List[Dict[str, Any]], batch_number: int) -> None:
         """
-        Save a batch of jobs to JSON, Parquet, and CSV files.
+        Optionally save a batch of jobs to JSON, Parquet, and CSV files.
+        Only used if config_manager.should_save_files_with_db() is True or DB is disabled.
 
         Args:
             jobs (List[Dict[str, Any]]): List of job items to save.
@@ -215,6 +230,7 @@ class JobScraper:
         """
         if not jobs:
             return
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         batch_name = f"batch_{batch_number:04d}_{timestamp}"
 
@@ -224,7 +240,6 @@ class JobScraper:
                 json.dump(jobs, f, ensure_ascii=False, indent=2)
 
             df = pd.json_normalize(jobs)
-
             parquet_path = self.processed_dir / f"{batch_name}.parquet"
             df.to_parquet(parquet_path, index=False)
 
@@ -232,7 +247,7 @@ class JobScraper:
             df.to_csv(csv_path, index=False, encoding="utf-8")
 
             self.logger.info(
-                f"Saved batch {batch_number} with {len(jobs)} jobs. "
+                f"Saved batch {batch_number} with {len(jobs)} jobs locally. "
                 f"Total jobs scraped so far: {self.total_jobs_scraped}"
             )
         except Exception as e:
@@ -241,14 +256,14 @@ class JobScraper:
 
     async def scrape(self) -> None:
         """
-        Main scraping loop. Starts from page 1, continues until
-        consecutive empty pages or max_pages is reached.
+        Main scraping loop. Fetch pages until no more data or hitting max_pages / empty pages.
         """
         async with aiohttp.ClientSession() as session:
             page = 1
             batch_num = 1
             current_batch_jobs: List[Dict[str, Any]] = []
             max_pages = self.scraper_config.get("max_pages", 1000)
+
             consecutive_empty_pages = 0
             max_empty_pages = self.scraper_config.get("max_empty_pages", 3)
 
@@ -256,17 +271,23 @@ class JobScraper:
                 try:
                     payload = self.create_payload(page=page)
                     result = await self.fetch_jobs(session, payload, page)
+
                     if not result or not result.get("data", {}).get("jobPosts"):
-                        self.logger.info(f"No more jobs found in API response on page {page}")
+                        self.logger.info(f"No more jobs found on page {page}, stopping.")
                         break
+
                     jobs = result["data"]["jobPosts"]
                     self.logger.info(f"Retrieved {len(jobs)} jobs from page {page}")
 
                     if not jobs:
                         consecutive_empty_pages += 1
-                        self.logger.info(f"Empty page {page}, consecutive empties: {consecutive_empty_pages}")
+                        self.logger.info(
+                            f"Empty page {page}, consecutive empties: {consecutive_empty_pages}"
+                        )
                         if consecutive_empty_pages >= max_empty_pages:
-                            self.logger.info(f"Reached {max_empty_pages} consecutive empty pages. Stopping.")
+                            self.logger.info(
+                                f"Reached {max_empty_pages} consecutive empty pages; stopping scrape."
+                            )
                             break
                         page += 1
                         continue
@@ -275,16 +296,22 @@ class JobScraper:
                     if processed_jobs:
                         consecutive_empty_pages = 0
                         current_batch_jobs.extend(processed_jobs)
+
                         job_batch_size = self.scraper_config.get("jobs_per_batch", 500)
+                        # Once we have enough jobs to form a full batch, insert them
                         if len(current_batch_jobs) >= job_batch_size:
                             processed_count = await self._process_jobs(current_batch_jobs)
                             self.total_jobs_scraped += processed_count
+
+                            # Save state
                             await self._save_batch_with_state(current_batch_jobs, batch_num, page)
                             batch_num += 1
                             current_batch_jobs = []
                     else:
                         consecutive_empty_pages += 1
-                        self.logger.info(f"No valid new jobs, consecutive empties: {consecutive_empty_pages}")
+                        self.logger.info(
+                            f"No valid new jobs, consecutive empties: {consecutive_empty_pages}"
+                        )
                         if consecutive_empty_pages >= max_empty_pages:
                             break
 
@@ -298,7 +325,7 @@ class JobScraper:
                         break
                     await asyncio.sleep(self.scraper_config.get("error_sleep_time", 2))
 
-            # Handle leftover
+            # Handle any leftover jobs in final batch
             if current_batch_jobs:
                 processed_count = await self._process_jobs(current_batch_jobs)
                 self.total_jobs_scraped += processed_count
@@ -310,7 +337,7 @@ class JobScraper:
         self, jobs: List[Dict[str, Any]], batch_num: int, current_page: int
     ) -> None:
         """
-        Save the current state to config_manager after processing a batch.
+        Save the current state to config_manager after processing a batch of jobs.
 
         Args:
             jobs (List[Dict[str, Any]]): The list of processed jobs in the batch.
@@ -324,7 +351,7 @@ class JobScraper:
             "last_run": datetime.now().isoformat(),
         }
         self.config_manager.save_state(current_state)
-        self.logger.debug(f"Updated state after batch {batch_num}, page {current_page}: {current_state}")
+        self.logger.debug(f"Updated state after batch {batch_num} on page {current_page}")
 
     async def _log_final_statistics(self, pages_processed: int) -> None:
         """
@@ -350,7 +377,7 @@ class JobScraper:
 
     async def _handle_error(self, page: int, error: Exception) -> None:
         """
-        Handle scraping errors by logging, tracking state, and scheduling a retry.
+        Handle scraping errors by logging, tracking state, and scheduling a retry if needed.
 
         Args:
             page (int): The page number where the error occurred.
@@ -373,19 +400,18 @@ class JobScraper:
         except Exception as ex:
             self.logger.error(f"Failed to save error state: {str(ex)}")
 
-        # If it's a likely network/timeout error, we can retry
+        # If it's likely a network or timeout error, we can retry
         if isinstance(error, (aiohttp.ClientError, asyncio.TimeoutError)):
             retry_delay = self.scraper_config.get("error_sleep_time", 2)
             self.logger.info(f"Will retry page {page} after {retry_delay} seconds.")
             await asyncio.sleep(retry_delay)
         else:
-            self.logger.error("Unrecoverable error encountered.")
+            self.logger.error("Unrecoverable error encountered. Stopping.")
             raise
 
     async def run(self) -> Dict[str, Union[int, str]]:
         """
-        A convenience method to initialize, start scraping, and handle
-        cleanup in a single call.
+        A convenience method to initialize, start scraping, and handle cleanup.
 
         Returns:
             Dict[str, Union[int, str]]: Final scraping statistics.
@@ -410,5 +436,6 @@ class JobScraper:
                 "error": str(e),
             }
         finally:
+            # Close DB connections if used
             if self.db_enabled and self.db_manager:
                 await self.db_manager.close()

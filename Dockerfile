@@ -1,10 +1,13 @@
-# Use Python 3.11 slim as base image
+# Use Python 3.11-slim as a lightweight base image
 FROM python:3.11-slim
+
+# ARG to suppress tzdata interactive prompts (optional for Debian/Ubuntu-based images)
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Set working directory
 WORKDIR /app
 
-# Set environment variables
+# Set environment variables for consistent behavior
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     SCRAPER_ENV=production \
@@ -13,7 +16,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     TZ=UTC
 
-# Install system dependencies
+# Install minimal system dependencies:
+#  - build-essential & libpq-dev required for psycopg2 compilation
+#  - cron, tzdata, logrotate needed for scheduled tasks, logs
+#  - gosu for dropping privileges
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -25,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for application
+# Create non-root user for running the application (security best practice)
 RUN groupadd -r scraper && useradd -r -g scraper scraper -u 1000
 
 # Create directory structure with proper permissions
@@ -38,14 +44,16 @@ RUN mkdir -p /app/job_data/raw_data \
     && chown -R scraper:scraper /app \
     && chmod -R 755 /app/job_data
 
-# Copy requirements first to leverage Docker cache
+# Copy requirements first for Docker layer caching
 COPY --chown=scraper:scraper requirements.txt .
 
 # Install Python dependencies
+# NOTE: We install flask & psutil for the health check service; remove 'requests'
+# if not strictly needed in the main application (health check uses 'curl').
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir flask requests psutil
+    && pip install --no-cache-dir flask psutil
 
-# Set up log rotation
+# Configure log rotation for logs inside /app/job_data/logs
 RUN echo "/app/job_data/logs/*.log {\n\
   rotate 7\n\
   daily\n\
@@ -57,12 +65,16 @@ RUN echo "/app/job_data/logs/*.log {\n\
 }" > /etc/logrotate.d/scraper \
     && chmod 0644 /etc/logrotate.d/scraper
 
-# Set up cron job for scheduled scraping (runs every 6 hours)
-RUN echo "0 */6 * * * cd /app && /usr/local/bin/python /app/main.py >> /app/job_data/logs/cron.log 2>&1" > /etc/cron.d/scraper-cron \
-    && echo "0 0 * * * /usr/sbin/logrotate /etc/logrotate.d/scraper --state /app/job_data/logs/logrotate.status" >> /etc/cron.d/scraper-cron \
+# Set up cron jobs for scheduled scraping every 6 hours + daily logrotate
+RUN echo "0 */6 * * * cd /app && /usr/local/bin/python /app/main.py >> /app/job_data/logs/cron.log 2>&1" \
+    > /etc/cron.d/scraper-cron \
+    && echo "0 0 * * * /usr/sbin/logrotate /etc/logrotate.d/scraper --state /app/job_data/logs/logrotate.status" \
+    >> /etc/cron.d/scraper-cron \
     && chmod 0644 /etc/cron.d/scraper-cron
 
-# Create a simple health check API
+# Create the health check API
+# Note how we keep the entire Python script in single quotes,
+# so we can use normal double quotes for @app.route("/health").
 RUN echo 'from flask import Flask, jsonify\n\
 import psutil\n\
 import os\n\
@@ -79,7 +91,7 @@ def health():\n\
     latest_log = None\n\
     if log_files:\n\
         latest_log = max([os.path.join(log_dir, f) for f in log_files], key=os.path.getmtime)\n\
-    \n\
+\n\
     return jsonify({\n\
         "status": "healthy",\n\
         "uptime_seconds": uptime,\n\
@@ -91,155 +103,28 @@ def health():\n\
     })\n\
 \n\
 if __name__ == "__main__":\n\
-    app.run(host="0.0.0.0", port=8081)\n\
-' > /app/health/app.py
+    app.run(host="0.0.0.0", port=8081)\n' > /app/health/app.py
 
-# Create a comprehensive entrypoint script
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-# Function to handle signals\n\
-cleanup() {\n\
-    echo "Received signal to shut down..."\n\
-    if [ -n "$HEALTH_PID" ]; then\n\
-        echo "Stopping health check service..."\n\
-        kill -TERM "$HEALTH_PID" 2>/dev/null || true\n\
-    fi\n\
-    if [ "$ENABLE_CRON" = "true" ]; then\n\
-        echo "Stopping cron service..."\n\
-        service cron stop || true\n\
-    fi\n\
-    echo "Cleanup complete, exiting..."\n\
-    exit 0\n\
-}\n\
-\n\
-# Register signal handlers\n\
-trap cleanup SIGTERM SIGINT\n\
-\n\
-# Validate required environment variables\n\
-if [ -z "$SCRAPER_ENV" ]; then\n\
-    echo "ERROR: SCRAPER_ENV environment variable is not set!"\n\
-    exit 1\n\
-fi\n\
-\n\
-echo "Starting job scraper in $SCRAPER_ENV environment..."\n\
-\n\
-# Debug information\n\
-echo "Current directory structure and permissions:"\n\
-ls -la /app/job_data/logs\n\
-\n\
-# Fix permissions for mounted volumes\n\
-echo "Ensuring proper permissions for all directories..."\n\
-chown -R scraper:scraper /app/job_data\n\
-chmod -R 755 /app/job_data\n\
-\n\
-# Clean up existing log files - handle ownership issues\n\
-echo "Cleaning up old log files ownership..."\n\
-find /app/job_data/logs -type f -name "*.log" -exec chown scraper:scraper {} \\;\n\
-find /app/job_data/logs -type f -name "*.log" -exec chmod 644 {} \\;\n\
-\n\
-# Ensure log directory has proper permissions\n\
-touch /app/job_data/logs/cron.log\n\
-chown scraper:scraper /app/job_data/logs/cron.log\n\
-chmod 644 /app/job_data/logs/cron.log\n\
-\n\
-# Start health check service\n\
-echo "Starting health check service on port 8081..."\n\
-python /app/health/app.py &\n\
-HEALTH_PID=$!\n\
-echo "Health check service started with PID $HEALTH_PID"\n\
-\n\
-# Wait for health service to start\n\
-echo "Waiting for health service to be available..."\n\
-for i in {1..10}; do\n\
-    if curl -s http://localhost:8081/health > /dev/null; then\n\
-        echo "Health service is up and running!"\n\
-        break\n\
-    fi\n\
-    if [ "$i" -eq 10 ]; then\n\
-        echo "ERROR: Health service failed to start!"\n\
-        exit 1\n\
-    fi\n\
-    echo "Waiting for health service... ($i/10)"\n\
-    sleep 1\n\
-done\n\
-\n\
-if [ "$ENABLE_CRON" = "true" ]; then\n\
-    echo "Starting cron service..."\n\
-    service cron start || { echo "Failed to start cron service"; exit 1; }\n\
-    echo "Cron service started successfully"\n\
-    \n\
-    # Verify cron is running\n\
-    if ! service cron status > /dev/null; then\n\
-        echo "ERROR: Cron service is not running!"\n\
-        exit 1\n\
-    fi\n\
-    echo "Cron service verified running"\n\
-fi\n\
-\n\
-if [ "$RUN_ON_START" = "true" ]; then\n\
-    echo "Running initial scraper job..."\n\
-    # Create a timestamp for the log file\n\
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")\n\
-    LOG_FILE="/app/job_data/logs/scraper_${TIMESTAMP}.log"\n\
-    touch "$LOG_FILE"\n\
-    chown scraper:scraper "$LOG_FILE"\n\
-    \n\
-    echo "Logging to $LOG_FILE"\n\
-    \n\
-    # Run the scraper as the scraper user\n\
-    gosu scraper bash -c "cd /app && python /app/main.py > $LOG_FILE 2>&1" || {\n\
-        echo "Initial scraper job failed with exit code $?. Checking permissions:"\n\
-        ls -la /app/job_data/logs\n\
-        echo "Last 20 lines of logs:"\n\
-        tail -n 20 "$LOG_FILE" 2>/dev/null || echo "No log file found at $LOG_FILE"\n\
-        exit 1;\n\
-    }\n\
-    \n\
-    echo "Initial scraper job completed successfully"\n\
-fi\n\
-\n\
-if [ "$ENABLE_CRON" = "true" ]; then\n\
-    echo "Keeping container running for cron jobs..."\n\
-    # Keep container running but still respond to signals\n\
-    while true; do\n\
-        tail -f /app/job_data/logs/cron.log & wait $!\n\
-    done\n\
-else\n\
-    echo "Running scraper once..."\n\
-    # Create a timestamp for the log file\n\
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")\n\
-    LOG_FILE="/app/job_data/logs/scraper_${TIMESTAMP}.log"\n\
-    touch "$LOG_FILE"\n\
-    chown scraper:scraper "$LOG_FILE"\n\
-    \n\
-    echo "Logging to $LOG_FILE"\n\
-    \n\
-    # Run the scraper as the scraper user\n\
-    gosu scraper bash -c "cd /app && python /app/main.py > $LOG_FILE 2>&1" || {\n\
-        echo "Scraper job failed with exit code $?. Checking permissions:"\n\
-        ls -la /app/job_data/logs\n\
-        echo "Last 20 lines of logs:"\n\
-        tail -n 20 "$LOG_FILE" 2>/dev/null || echo "No log file found at $LOG_FILE"\n\
-        exit 1;\n\
-    }\n\
-    \n\
-    echo "Scraper job completed successfully"\n\
-fi' > /app/entrypoint.sh \
-    && chmod +x /app/entrypoint.sh
-
-# Copy the rest of the application
+# Copy the entire application (including entrypoint.sh)
 COPY --chown=scraper:scraper . .
 
-# Configure healthcheck
+# Ensure entrypoint.sh has correct permissions and line endings
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod 755 /app/entrypoint.sh
+
+# Docker HEALTHCHECK - calls the flask health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -sf http://localhost:8081/health || exit 1
 
-# Expose health check port
+# Expose the health check port
 EXPOSE 8081
 
-# Set volumes for persistent data
+# Use a volume for /app/job_data to persist data and logs
 VOLUME ["/app/job_data"]
 
-# Set the entrypoint
+# Switch to non-root user for runtime (Optional if you want to remain root for cron).
+# Currently, we keep "USER root" because cron sometimes requires root-level permissions
+# to write /var/run/crond.pid. If that's resolved, we could switch to 'USER scraper'.
+USER root
+
+# Set the entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"]

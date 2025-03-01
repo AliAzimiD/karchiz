@@ -8,12 +8,15 @@ from typing import Dict, Any, Optional
 
 from .log_setup import get_logger
 
+# Central logger for ConfigManager
 logger = get_logger("ConfigManager")
+
 
 class ConfigManager:
     """
-    Manages configuration and state for the job scraper. Loads from a YAML file
-    and optionally merges environment variables. Also handles saving 'state'.
+    Manages configuration and state for the job scraper.
+    Loads from a YAML file and optionally merges environment variables.
+    Also handles saving 'state' to allow resuming or tracking scraping progress.
     """
 
     def __init__(self, config_path: str = "config/api_config.yaml") -> None:
@@ -24,8 +27,10 @@ class ConfigManager:
             config_path (str): Path to the YAML config file.
         """
         self.config_path: str = config_path
+        # Immediately load config from YAML + any environment overrides
         self._load_config()
 
+        # Setup the directory for storing persistent 'state' JSON
         self.state_dir = Path("job_data/state")
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.state_file = self.state_dir / "scraper_state.json"
@@ -33,16 +38,19 @@ class ConfigManager:
     def _load_config(self) -> None:
         """
         Load configuration from the specified YAML file
-        and parse it into class attributes.
+        and parse it into class attributes (api_config, request_config, scraper_config, etc.).
         """
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
+
+            # Sections from YAML
             self.api_config: Dict[str, Any] = config.get("api", {})
             self.request_config: Dict[str, Any] = config.get("request", {})
             self.scraper_config: Dict[str, Any] = config.get("scraper", {})
             self.database_config: Dict[str, Any] = config.get("database", {})
 
+            # Warn if critical sections are missing
             if not self.api_config:
                 logger.warning("API configuration section is missing or empty")
             if not self.request_config:
@@ -63,7 +71,10 @@ class ConfigManager:
 
     def load_state(self) -> Dict[str, Any]:
         """
-        Load the latest scraper state from a JSON file.
+        Load the latest scraper state from a JSON file, or return an empty dict if none exists.
+
+        Returns:
+            Dict[str, Any]: The loaded state dictionary.
         """
         if not self.state_file.exists():
             logger.info("No state file found. Starting fresh.")
@@ -82,21 +93,23 @@ class ConfigManager:
 
     def save_state(self, state_update: Dict[str, Any]) -> None:
         """
-        Update and persist the scraper state with new values.
+        Update and persist the scraper state with new values in JSON form.
 
         Args:
-            state_update (Dict[str, Any]): Key-value pairs to update in the state.
+            state_update (Dict[str, Any]): Key-value pairs to update in the stored state.
         """
         try:
             current_state = self.load_state()
             current_state.update(state_update)
 
+            # Always store a timestamp of the last update if not included
             if "last_updated" not in state_update:
                 current_state["last_updated"] = datetime.now().isoformat()
 
             with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(current_state, f, indent=2, ensure_ascii=False)
 
+            # Optionally create a backup if configured in 'state_tracking'
             backup_count = self.scraper_config.get("state_tracking", {}).get("backup_count", 3)
             if backup_count > 0:
                 self._create_state_backup(backup_count)
@@ -121,6 +134,7 @@ class ConfigManager:
                     with open(backup_file, "w", encoding="utf-8") as dst:
                         dst.write(src.read())
 
+            # Remove oldest backups if exceeding backup_count
             backups = sorted(self.state_dir.glob("scraper_state_*.json"))
             if len(backups) > backup_count:
                 for old_backup in backups[:-backup_count]:
@@ -130,34 +144,40 @@ class ConfigManager:
 
     def should_save_files_with_db(self) -> bool:
         """
-        Check if we should save files locally even when the database is enabled.
+        Check if we should still save raw JSON/CSV/Parquet locally
+        even when the database is enabled.
+
+        Returns:
+            bool: True if local file saving is desired alongside DB usage.
         """
         return self.database_config.get("save_raw_data", True)
 
     def get_db_connection_string(self) -> Optional[str]:
         """
-        Get the DB connection string if the database is enabled.
+        Return the database connection string if 'enabled' is True in the config.
+
+        Returns:
+            Optional[str]: Connection URI or None if the database is not enabled.
         """
         if self.database_config.get("enabled", False):
             return self.database_config.get("connection_string")
         return None
 
-
     def get_max_concurrent_requests(self) -> int:
         """
-        Get the max number of concurrent requests allowed by the scraper.
+        Get the maximum number of concurrent HTTP requests allowed by the scraper.
 
         Returns:
-            int: The concurrency limit.
+            int: The concurrency limit (default 3 if missing).
         """
         return self.scraper_config.get('max_concurrent_requests', 3)
 
     def get_rate_limits(self) -> Dict[str, int]:
         """
-        Get rate-limiting parameters from the config.
+        Get rate-limiting parameters from the config (requests_per_minute, burst).
 
         Returns:
-            dict: Contains requests_per_minute and burst sizes.
+            dict: Rate limit parameters.
         """
         rate_limit = self.scraper_config.get('rate_limit', {})
         return {
@@ -167,10 +187,10 @@ class ConfigManager:
 
     def get_retry_config(self) -> Dict[str, Any]:
         """
-        Get retry configuration from the config.
+        Get retry-related parameters for controlling backoff logic.
 
         Returns:
-            dict: Contains max_retries and min/max delays.
+            dict: Contains max_retries, min_delay, max_delay used for tenacity or similar.
         """
         return {
             'max_retries': self.scraper_config.get('max_retries', 5),
@@ -180,21 +200,21 @@ class ConfigManager:
 
     def get_monitoring_config(self) -> Dict[str, Any]:
         """
-        Get monitoring-related config if specified.
+        Retrieve monitoring-related configuration if present.
 
         Returns:
-            dict: Monitoring config dictionary.
+            dict: A dictionary of monitoring settings (metrics, thresholds, etc.).
         """
         return self.scraper_config.get('monitoring', {})
 
     def update_config(self, section: str, key: str, value: Any) -> None:
         """
-        Update a specific configuration value and reload the YAML file.
+        Update a specific configuration value in the YAML file, then reload.
 
         Args:
-            section (str): Top-level config section (e.g. 'scraper', 'database').
-            key (str): The config key to update.
-            value (Any): The new value to store.
+            section (str): Name of the top-level config section (e.g. 'scraper', 'database').
+            key (str): Key within that section.
+            value (Any): New value to store.
         """
         try:
             with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -207,6 +227,7 @@ class ConfigManager:
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 yaml.dump(config, f, default_flow_style=False)
 
+            # Reload the config into memory
             self._load_config()
             logger.info(f"Updated config: {section}.{key} = {value}")
 

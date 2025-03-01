@@ -1,10 +1,17 @@
+# ==============================================
+# API Configuration
+# ==============================================
 api:
+  # Base URL for the job posts API endpoint.
   base_url: "https://api.karbord.io/api/v1/Candidate/JobPost/GetList"
+  
+  # HTTP headers for all API requests.
   headers:
     accept: "application/json, text/plain, */*"
     accept-encoding: "gzip, deflate, br, zstd"
     accept-language: "en-US,en;q=0.9"
-    clientid: "4558668"
+    # Unique client identifier; can be overridden by environment variables if needed.
+    clientid: "4575772"
     content-type: "application/json"
     ngsw-bypass: "true"
     origin: "https://karbord.io"
@@ -17,6 +24,9 @@ api:
     sec-fetch-site: "same-site"
     user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
 
+# ==============================================
+# Default Request Payload
+# ==============================================
 request:
   default_payload:
     isInternship: false
@@ -24,110 +34,118 @@ request:
     location: null
     publishDate: null
     workType: null
-    pageSize: 100
+    pageSize: 100         # Number of items to request per page.
     sort: 0
     searchId: null
-    jobPostCategories: []
-    jobBoardIds: []
+    jobPostCategories: [] # Categories for filtering job posts.
+    jobBoardIds: []       # List of job board IDs to filter by.
     hasNoWorkExperienceRequirement: false
-    clientId: 4558668
-    page: 1
-    nextPageToken: null
+    clientId: 4558668     # Must match the API's expected client ID.
+    page: 1               # Default starting page.
+    nextPageToken: null   # Token for pagination if required.
 
+# ==============================================
+# Scraper Configuration
+# ==============================================
 scraper:
-  # Core scraping parameters
-  batch_size: 100  # API limit per request
-  jobs_per_batch: 1000  # Number of jobs to accumulate before saving
-  max_pages: 9000  # Maximum pages to scrape
-  chunk_size: 1000  # Size of job chunks for processing
-  
-  # Performance and resource settings
-  memory_limit: 1024  # Maximum memory usage in MB
-  max_concurrent_requests: 5  # Number of concurrent requests
-  timeout: 60  # Request timeout in seconds
-  
-  # Timing and rate limiting
-  sleep_time: 0.5  # Base delay between requests
+
+  # ==============================================
+# Database Configuration
+# ==============================================
+  database:
+    enabled: true
+    # Use environment variables or secrets in production to secure the connection string.
+    connection_string: "postgresql://username:password@localhost:5432/jobsdb"
+    schema: "public"
+    batch_size: 1000         # Maximum number of jobs per bulk insert.
+    save_raw_data: true      # Option to also save raw data locally.
+    max_connections: 10
+    retry_attempts: 3
+    retry_delay: 5           # Delay (in seconds) between retry attempts.
+
+  # Batch and Pagination Settings
+  batch_size: 100            # Number of jobs per API request (batch).
+  jobs_per_batch: 1000       # Total jobs to accumulate before processing a full batch.
+  max_pages: 9000            # Maximum number of pages to scrape in one run.
+  chunk_size: 1000           # Chunk size when processing/inserting jobs.
+
+  # Resource and Concurrency Settings
+  memory_limit: 1024         # Maximum allowed memory usage in MB.
+  max_concurrent_requests: 5 # Limit on simultaneous HTTP requests.
+  timeout: 60                # HTTP request timeout in seconds.
+
+  # Timing and Rate Limiting Settings
+  sleep_time: 0.5            # Base delay between API requests (in seconds).
   rate_limit:
-    requests_per_minute: 120
-    burst: 10  # Maximum burst requests
-    
-  # Error handling and retry logic
-  max_retries: 5  # Maximum number of retry attempts
+    requests_per_minute: 120 # Maximum number of API requests per minute.
+    burst: 10                # Maximum burst (immediate) requests allowed.
+
+  # Retry Logic
+  max_retries: 5             # Maximum number of retries on failure.
   retry_delay:
-    min: 2  # Minimum retry delay in seconds
-    max: 10  # Maximum retry delay in seconds
-    
-  # New job detection and resume settings
-  lookback_pages: 5  # Number of pages to look back when resuming
-  minimum_pages: 10  # Minimum pages to check before considering stopping
-  max_empty_pages: 3  # Maximum consecutive empty pages before stopping
-  max_resume_age: 86400  # Maximum age (in seconds) of previous state to resume from
-  
-  # State management
+    min: 2                   # Minimum delay before a retry (seconds).
+    max: 10                  # Maximum delay before a retry (seconds).
+
+  # Resume and Empty-Page Logic
+  lookback_pages: 5          # Number of pages to look back when resuming.
+  minimum_pages: 10          # Minimum pages to check before stopping.
+  max_empty_pages: 3         # Maximum consecutive empty pages allowed.
+  max_resume_age: 86400      # Maximum age (in seconds) of previous state to resume.
+
+  # State Management
   state_tracking:
     enabled: true
-    save_interval: 300  # Save state every 5 minutes
-    backup_count: 3  # Number of state backups to keep
-    
-  # Timestamp handling
+    save_interval: 300       # Time interval (in seconds) to auto-save the state.
+    backup_count: 3          # Number of state backups to retain.
+
+  # Timestamp Formatting
   timestamp_settings:
-    format: "%Y-%m-%dT%H:%M:%S.%fZ"  # Expected timestamp format
+    format: "%Y-%m-%dT%H:%M:%S.%fZ"  # Expected timestamp format.
     timezone: "UTC"
-    
-  # Job deduplication
+
+  # Job Deduplication
   deduplication:
     enabled: true
-    method: "id_based"  # Can be 'id_based' or 'content_based'
-    cache_size: 10000  # Number of job IDs to keep in memory
-    
-  # Monitoring and logging
+    method: "id_based"       # Deduplication strategy: use 'id_based' or 'content_based'.
+    cache_size: 10000        # Maximum number of job IDs to keep in memory.
+
+  # Monitoring and Alerts
   monitoring:
     enabled: true
     metrics:
-      - new_jobs_count
-      - processing_time
-      - memory_usage
-      - request_latency
+      - new_jobs_count     # Count of new jobs found.
+      - processing_time    # Time taken for processing.
+      - memory_usage       # Memory usage statistics.
+      - request_latency    # Latency of API requests.
     alert_thresholds:
-      max_errors_per_minute: 10
-      max_memory_percent: 90
-      max_latency_ms: 5000
-      
-  # Data validation
+      max_errors_per_minute: 10  # Threshold for error alerts.
+      max_memory_percent: 90     # Maximum memory usage percentage.
+      max_latency_ms: 5000       # Maximum allowed latency in milliseconds.
+
+  # Data Validation
   validation:
     enabled: true
     required_fields:
       - id
       - title
-      - posted_at
-    
-  # Output settings
+      - posted_at         # Ensure each job contains these fields.
+
+  # Output Settings (for local backups)
   output:
-    format: "json"
-    compression: true
-    batch_prefix: "batch_"
-    timestamp_format: "%Y%m%d_%H%M%S"
-    
-  # Clean up settings
+    format: "json"           # File format for output (e.g., JSON).
+    compression: true        # Whether to compress output files.
+    batch_prefix: "batch_"   # Prefix used for naming batch files.
+    timestamp_format: "%Y%m%d_%H%M%S"  # Timestamp format in filenames.
+
+  # Cleanup Settings (for temporary files)
   cleanup:
     enabled: true
-    max_age_days: 7  # Remove temporary files older than 7 days
-    keep_last_n_batches: 50  # Always keep the last 50 batches
-    
-  # Debug settings
-  debug:
-    enabled: false
-    verbose_logging: false
-    save_raw_responses: false
+    max_age_days: 7          # Remove files older than 7 days.
+    keep_last_n_batches: 50  # Always keep the most recent 50 batches.
 
-# Add this section to your existing config file
-database:
-  enabled: true
-  connection_string: "postgresql://username:password@localhost:5432/jobsdb"
-  schema: "public"
-  batch_size: 1000
-  save_raw_data: true
-  max_connections: 10
-  retry_attempts: 3
-  retry_delay: 5
+  # Debug Options
+  debug:
+    enabled: true
+    verbose_logging: true
+    save_raw_responses: true
+

@@ -13,14 +13,15 @@ from typing import Any, Dict
 from src.scraper import JobScraper
 from src.health import HealthCheck
 from src.db_manager import DatabaseManager
-from src.log_setup import get_logger  # <-- Our new centralized logger
+from src.log_setup import get_logger  # Centralized logger
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # For imports
+
 
 class GracefulExit:
     """
     Handles graceful shutdown for the application by capturing
-    SIGINT and SIGTERM signals and triggering registered async tasks.
+    SIGINT and SIGTERM signals, then running registered async tasks.
     """
     def __init__(self) -> None:
         self.shutdown: bool = False
@@ -33,7 +34,7 @@ class GracefulExit:
         Register a coroutine to be executed during shutdown.
 
         Args:
-            task: Any async function or coroutine to be run at shutdown.
+            task (Any): An async function or coroutine to run on exit.
         """
         self.shutdown_tasks.append(task)
 
@@ -51,42 +52,39 @@ class GracefulExit:
 
     def _signal_handler(self, signum, frame) -> None:
         """
-        Internal signal handler that sets the shutdown flag.
+        Internal handler that sets shutdown flag on SIGINT or SIGTERM.
         """
         print("\nShutdown signal received. Cleaning up...")
         self.shutdown = True
 
+
 @asynccontextmanager
 async def lifespan():
     """
-    Context manager for application lifespan management.
-    Sets up shared resources (DB, health server) and ensures
-    a graceful teardown when finished or if a shutdown signal is received.
+    Context manager for the app's lifespan. Sets up the DB, health server,
+    and ensures graceful teardown if a shutdown signal is received.
 
     Yields:
-        dict: Contains references to the graceful_exit object, logger, db_manager, and config.
+        dict: Contains references to graceful_exit, logger, db_manager, config
     """
-    # Setup logging (centralized)
     logger = get_logger(name="main")
-
-    # Setup resources
     graceful_exit = GracefulExit()
     config = load_config()
+
     db_manager: DatabaseManager = None  # type: ignore
     health_runner = None
     health_site = None
 
     try:
-        # Initialize database connection
+        # Initialize DB connection from config
         connection_str = config["database"]["connection_string"]
         db_manager = DatabaseManager(connection_string=connection_str)
         db_success = await db_manager.initialize()
-
         if not db_success:
             logger.error("Failed to initialize database connection")
             raise RuntimeError("Database initialization failed")
 
-        # Start health check server if enabled
+        # Optionally start health server if config says so
         if config["app"].get("enable_health_check", True):
             health_check = HealthCheck(db_manager)
             host = config["app"].get("health_host", "0.0.0.0")
@@ -94,12 +92,13 @@ async def lifespan():
             health_runner, health_site = await health_check.start(host=host, port=port)
             logger.info(f"Health check server started on port {port}")
 
-        # Register shutdown tasks
+        # On shutdown, close DB + health server
         if db_manager:
             graceful_exit.register_shutdown_task(lambda: db_manager.close())
         if health_runner:
             graceful_exit.register_shutdown_task(lambda: health_runner.cleanup())
 
+        # Provide resources to the caller (e.g. run_scraper)
         yield {
             "graceful_exit": graceful_exit,
             "logger": logger,
@@ -109,6 +108,7 @@ async def lifespan():
 
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
+        # Cleanup if partial setup occurred
         if db_manager:
             await db_manager.close()
         if health_runner:
@@ -119,12 +119,14 @@ async def lifespan():
             await graceful_exit.execute_shutdown()
             logger.info("Graceful shutdown completed")
 
+
 def load_config() -> Dict[str, Any]:
     """
-    Load application configuration from files and environment variables.
+    Load config from a YAML file plus environment overrides,
+    merging them into a final dictionary.
 
     Returns:
-        Dict[str, Any]: Consolidated config from file plus environment overrides.
+        dict: Final config with 'app', 'database', 'scraper' keys
     """
     config: Dict[str, Any] = {
         "app": {
@@ -147,9 +149,11 @@ def load_config() -> Dict[str, Any]:
         },
     }
 
+    # Attempt to load from a local config file if it exists
     config_path = os.getenv("CONFIG_PATH", "config/app_config.yaml")
     if os.path.exists(config_path):
         try:
+            import yaml
             with open(config_path, "r", encoding="utf-8") as f:
                 file_config = yaml.safe_load(f)
                 for section in config:
@@ -158,8 +162,7 @@ def load_config() -> Dict[str, Any]:
         except Exception as e:
             logging.warning(f"Error loading config file: {str(e)}")
 
-    # Environment overrides
-    # Database
+    # Merge environment variables for DB / app / scraper
     if os.getenv("POSTGRES_HOST"):
         db_user = os.getenv("POSTGRES_USER", "postgres")
         db_password = os.getenv("POSTGRES_PASSWORD", "")
@@ -167,7 +170,7 @@ def load_config() -> Dict[str, Any]:
         db_port = os.getenv("POSTGRES_PORT", "5432")
         db_name = os.getenv("POSTGRES_DB", "jobsdb")
 
-        # If password file is present
+        # If password is in a file, read it
         pw_file = os.getenv("POSTGRES_PASSWORD_FILE")
         if pw_file and os.path.exists(pw_file):
             with open(pw_file, "r", encoding="utf-8") as pf:
@@ -177,7 +180,7 @@ def load_config() -> Dict[str, Any]:
             f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         )
 
-    # App
+    # Overwrite app config if present
     if os.getenv("SCRAPER_ENV"):
         config["app"]["environment"] = os.getenv("SCRAPER_ENV")
 
@@ -190,7 +193,7 @@ def load_config() -> Dict[str, Any]:
     if os.getenv("HEALTH_PORT"):
         config["app"]["health_port"] = int(os.getenv("HEALTH_PORT"))
 
-    # Scraper
+    # Overwrite scraper config if present
     if os.getenv("SCRAPER_CONFIG_PATH"):
         config["scraper"]["config_path"] = os.getenv("SCRAPER_CONFIG_PATH")
 
@@ -199,15 +202,16 @@ def load_config() -> Dict[str, Any]:
 
     return config
 
+
 async def run_scraper(resources: Dict[str, Any]) -> bool:
     """
-    Run the job scraper with proper error handling and metrics collection.
+    Run the job scraper with error handling, DB stats collection, and final logging.
 
     Args:
-        resources (Dict[str, Any]): Contains references to the logger, db_manager, config, etc.
+        resources (dict): Contains logger, db_manager, config, graceful_exit
 
     Returns:
-        bool: True if the scraping completed successfully, False otherwise.
+        bool: True if successful, False otherwise
     """
     logger: logging.Logger = resources["logger"]
     db_manager: DatabaseManager = resources["db_manager"]
@@ -225,12 +229,14 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
     }
 
     try:
-        # Initialize scraper
+        # Create the scraper with the DB manager
+        from src.scraper import JobScraper
         scraper = JobScraper(
             config_path=config["scraper"]["config_path"],
             save_dir=config["scraper"]["save_dir"],
             db_manager=db_manager,
         )
+
         init_success = await scraper.initialize()
         if not init_success:
             logger.error("Failed to initialize scraper. Exiting.")
@@ -239,25 +245,24 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
             await db_manager.record_scraper_stats(stats)
             return False
 
-        # Run the scraping
         try:
-            scraper_results = await scraper.run()
-            stats.update(
-                {
-                    "total_jobs_scraped": scraper_results.get("total_jobs", 0),
-                    "new_jobs_found": scraper_results.get("new_jobs", 0),
-                    "pages_processed": scraper_results.get("pages_processed", 0),
-                    "status": "completed",
-                }
-            )
+            # Actually scrape
+            result = await scraper.run()
+            stats.update({
+                "total_jobs_scraped": result.get("total_jobs", 0),
+                "pages_processed": result.get("pages_processed", 0),
+                # If you track new_jobs separately, include here
+                "status": "completed"
+            })
             logger.info(
                 f"Scraper run completed. Processed {stats['pages_processed']} pages, "
-                f"found {stats['new_jobs_found']} new jobs, total {stats['total_jobs_scraped']}."
+                f"total {stats['total_jobs_scraped']} jobs."
             )
 
         except Exception as e:
+            # If a fatal error occurs mid-scrape
             if graceful_exit.shutdown:
-                logger.info("Scraper stopped due to shutdown signal")
+                logger.info("Scraper interrupted by shutdown signal.")
                 stats["status"] = "interrupted"
             else:
                 logger.error(f"Error during scraping: {str(e)}")
@@ -266,12 +271,13 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
                 stats["metadata"]["error"] = str(e)
 
     except Exception as e:
-        logger.error(f"Critical error: {str(e)}")
+        logger.error(f"Critical error in run_scraper: {str(e)}")
         stats["status"] = "failed"
         stats["errors"] += 1
         stats["metadata"]["critical_error"] = str(e)
         return False
     finally:
+        # Record total run time and store in DB
         stats["processing_time"] = time.time() - start_time
         try:
             await db_manager.record_scraper_stats(stats)
@@ -284,12 +290,10 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
 
     return stats["status"] == "completed"
 
+
 async def main() -> int:
     """
-    Main application entry point with proper resource management.
-
-    Returns:
-        int: 0 if the scraper completes successfully, 1 otherwise.
+    Main async entry point. Uses lifespan context manager to handle resources.
     """
     try:
         async with lifespan() as resources:
@@ -298,6 +302,7 @@ async def main() -> int:
     except Exception as e:
         print(f"Fatal error in main(): {str(e)}")
         return 1
+
 
 if __name__ == "__main__":
     try:
