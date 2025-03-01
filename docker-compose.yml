@@ -1,25 +1,126 @@
-# docker-compose.yml
 version: '3.8'
 
 services:
   scraper:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: job_scraper
     volumes:
       - ./job_data:/app/job_data
       - ./config:/app/config
     environment:
       - SCRAPER_ENV=production
-      - TZ=UTC
+      - TZ=Asia/Tehran
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=jobsdb
+      - POSTGRES_USER=jobuser
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - ENABLE_CRON=true
+      - RUN_ON_START=true
+      - LOG_LEVEL=INFO
+    secrets:
+      - db_password
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "8081:8081"
     deploy:
       resources:
         limits:
           memory: 2G
+          cpus: '1'
         reservations:
           memory: 1G
+          cpus: '0.5'
     restart: unless-stopped
     logging:
       driver: "json-file"
       options:
         max-size: "100m"
         max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - scraper-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: job_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=jobsdb
+      - POSTGRES_USER=jobuser
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_INITDB_ARGS="--data-checksums"
+    secrets:
+      - db_password
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobuser -d jobsdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scraper-network
+    shm_size: 256m
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: job_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD_FILE=/run/secrets/pgadmin_password
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    secrets:
+      - pgadmin_password
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - scraper-network
+    healthcheck:
+      test: ["CMD", "wget", "-O", "-", "http://localhost/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  postgres_data:
+    name: job_postgres_data
+  pgadmin_data:
+    name: job_pgadmin_data
+
+networks:
+  scraper-network:
+    driver: bridge
+    name: job_scraper_network
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  pgadmin_password:
+    file: ./secrets/pgadmin_password.txt

@@ -120,3 +120,14 @@ scraper:
     enabled: false
     verbose_logging: false
     save_raw_responses: false
+
+# Add this section to your existing config file
+database:
+  enabled: true
+  connection_string: "postgresql://username:password@localhost:5432/jobsdb"
+  schema: "public"
+  batch_size: 1000
+  save_raw_data: true
+  max_connections: 10
+  retry_attempts: 3
+  retry_delay: 5
