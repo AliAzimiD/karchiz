@@ -25,7 +25,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Expose only the port needed for health checks (8081).
     ports:
       - "8081:8081"
     deploy:
@@ -108,11 +107,42 @@ services:
       retries: 3
       start_period: 30s
 
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
+    container_name: job_superset
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - db_password
+    environment:
+      SUPERSET_SECRET_KEY: "change_this_to_something_random"
+    ports:
+      - "8088:8088"
+    volumes:
+      - superset_home:/app/superset_home
+    command: >
+      /bin/bash -c '
+        DB_PASS=$(cat /run/secrets/db_password) &&
+        export SQLALCHEMY_DATABASE_URI="postgresql+psycopg2://jobuser:$DB_PASS@db:5432/jobsdb" &&
+        superset fab create-admin --username admin --password admin --firstname Admin --lastname User --email admin@example.com &&
+        superset db upgrade &&
+        superset init &&
+        superset run -p 8088 -h 0.0.0.0 --with-threads --reload --debugger
+      '
+    restart: unless-stopped
+    networks:
+      - scraper-network
+
 volumes:
   postgres_data:
     name: job_postgres_data
   pgadmin_data:
     name: job_pgadmin_data
+  superset_home:
+    name: job_superset_home
 
 networks:
   scraper-network:

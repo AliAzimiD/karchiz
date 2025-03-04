@@ -257,3 +257,215 @@ SET
   END
 WHERE job_post_categories IS NOT NULL
   AND jsonb_typeof(job_post_categories::jsonb) = 'array';
+-------------------------------------------------------------
+
+In PostgreSQL, you have essentially two main ways to ensure that these derived columns are always populated for new or updated rows:
+
+1. **Use a Trigger** (most common approach)
+2. Use a **Generated Column** (with limitations, especially when referencing JSON data).
+
+Below is the recommended approach using a **trigger**. The high-level idea is:
+
+- Create the columns (if they do not exist).
+- Write a PL/pgSQL function that calculates/populates those columns from the JSON fields.
+- Attach that function to the table via a `BEFORE INSERT OR UPDATE` trigger so that every new or updated row automatically gets these fields populated.
+
+---
+
+## 1) Create the columns (if they do not already exist)
+
+```sql
+ALTER TABLE jobs
+  ADD COLUMN IF NOT EXISTS tag_no_experience INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tag_remote INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tag_part_time INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tag_internship INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tag_military_exemption INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS jobBoard_titleEn TEXT,
+  ADD COLUMN IF NOT EXISTS jobBoard_titleFa TEXT,
+  ADD COLUMN IF NOT EXISTS primary_city TEXT,
+  ADD COLUMN IF NOT EXISTS work_type TEXT,
+  ADD COLUMN IF NOT EXISTS category TEXT,
+  ADD COLUMN IF NOT EXISTS parent_cat TEXT,
+  ADD COLUMN IF NOT EXISTS sub_cat TEXT;
+```
+
+> **Note**: If some of these columns already exist or you already added them, you can skip the columns already in place.
+
+---
+
+## 2) Create a PL/pgSQL Function to Populate the Columns
+
+This function will apply the same logic that you were using in your manual `UPDATE` statements but will do so whenever a row is inserted or updated.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_update_derived_columns()
+RETURNS TRIGGER AS
+$$
+BEGIN
+    -------------------------------------------------------------------
+    -- Tags logic
+    -------------------------------------------------------------------
+    IF NEW.tags IS NOT NULL THEN
+
+        -- tag_no_experience
+        NEW.tag_no_experience := CASE 
+            WHEN EXISTS (SELECT 1 
+                         FROM jsonb_array_elements_text(NEW.tags) AS t
+                         WHERE t = 'بدون نیاز به سابقه')
+            THEN 1
+            ELSE 0
+        END;
+        
+        -- tag_remote
+        NEW.tag_remote := CASE 
+            WHEN EXISTS (SELECT 1 
+                         FROM jsonb_array_elements_text(NEW.tags) AS t
+                         WHERE t = 'دورکاری')
+            THEN 1
+            ELSE 0
+        END;
+
+        -- tag_part_time
+        NEW.tag_part_time := CASE 
+            WHEN EXISTS (SELECT 1 
+                         FROM jsonb_array_elements_text(NEW.tags) AS t
+                         WHERE t = 'پاره وقت')
+            THEN 1
+            ELSE 0
+        END;
+
+        -- tag_internship
+        NEW.tag_internship := CASE 
+            WHEN EXISTS (SELECT 1 
+                         FROM jsonb_array_elements_text(NEW.tags) AS t
+                         WHERE t = 'کارآموزی')
+            THEN 1
+            ELSE 0
+        END;
+
+        -- tag_military_exemption
+        NEW.tag_military_exemption := CASE 
+            WHEN EXISTS (SELECT 1 
+                         FROM jsonb_array_elements_text(NEW.tags) AS t
+                         WHERE t = 'امریه سربازی')
+            THEN 1
+            ELSE 0
+        END;
+
+    END IF;
+
+    -------------------------------------------------------------------
+    -- jobBoard_titleEn & jobBoard_titleFa logic
+    -------------------------------------------------------------------
+    IF NEW.raw_data ? 'jobBoard' THEN
+        NEW.jobBoard_titleEn := NEW.raw_data->'jobBoard'->>'titleEn';
+        NEW.jobBoard_titleFa := NEW.raw_data->'jobBoard'->>'titleFa';
+    END IF;
+
+    -------------------------------------------------------------------
+    -- primary_city (from locations)
+    -------------------------------------------------------------------
+    IF NEW.locations IS NOT NULL
+       AND jsonb_typeof(NEW.locations) = 'array' THEN
+        NEW.primary_city := (
+            SELECT elem->'city'->>'titleEn'
+            FROM jsonb_array_elements(NEW.locations) AS elem
+            LIMIT 1
+        );
+    END IF;
+
+    -------------------------------------------------------------------
+    -- work_type (from work_types)
+    -------------------------------------------------------------------
+    IF NEW.work_types IS NOT NULL
+       AND jsonb_typeof(NEW.work_types) = 'array' THEN
+        NEW.work_type := (
+            SELECT elem->>'titleEn'
+            FROM jsonb_array_elements(NEW.work_types) AS elem
+            LIMIT 1
+        );
+    END IF;
+
+    -------------------------------------------------------------------
+    -- category, parent_cat, sub_cat (from job_post_categories)
+    -------------------------------------------------------------------
+    IF NEW.job_post_categories IS NOT NULL
+       AND jsonb_typeof(NEW.job_post_categories) = 'array'
+       AND jsonb_array_length(NEW.job_post_categories) > 0 THEN
+
+        -- If there's only one element in the array, that becomes "category"
+        -- If there are at least two, the first is "parent_cat" and the second is "sub_cat" (and also "category").
+        IF jsonb_array_length(NEW.job_post_categories) = 1 THEN
+            NEW.category := NEW.job_post_categories->0->>'titleEn';
+            NEW.parent_cat := NULL; -- or same as category if you prefer
+            NEW.sub_cat := NULL;
+        ELSIF jsonb_array_length(NEW.job_post_categories) >= 2 THEN
+            NEW.category := NEW.job_post_categories->1->>'titleEn';
+            NEW.parent_cat := NEW.job_post_categories->0->>'titleEn';
+            NEW.sub_cat := NEW.job_post_categories->1->>'titleEn';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+```
+
+A few notes on the function:
+
+- We used `NEW` rather than the table name since this is a **trigger function**. `NEW` represents the row being inserted or updated.
+- We check for `NULL` or array conditions to avoid errors when those JSON fields don’t exist or are invalid.
+
+---
+
+## 3) Create a Trigger that Calls This Function
+
+We want this to happen **before** each row is actually inserted or updated, so the final row inserted/updated has the correct derived columns.
+
+```sql
+DROP TRIGGER IF EXISTS trg_update_derived_columns ON jobs;
+
+CREATE TRIGGER trg_update_derived_columns
+BEFORE INSERT OR UPDATE
+ON jobs
+FOR EACH ROW
+EXECUTE PROCEDURE fn_update_derived_columns();
+```
+
+Now, anytime you do an `INSERT` or `UPDATE` on `jobs`, PostgreSQL will call `fn_update_derived_columns()` before completing the write, and your derived columns will be set automatically.
+
+---
+
+## 4) (Optional) Run a One-Time UPDATE for Existing Rows
+
+If you already have rows in the table and want to backfill these columns based on existing JSON, run:
+
+```sql
+UPDATE jobs
+SET
+    -- Force the columns to recalculate:
+    -- We just set them to their own values to trigger BEFORE UPDATE
+    tags = tags
+;
+```
+
+Because of the `BEFORE UPDATE` trigger, doing something like `SET tags = tags` will cause Postgres to run the trigger logic on every row, thereby updating your derived columns. (We basically “touch” the row so the trigger fires.)
+
+If you have a very large table, you may want to break that update into chunks or do it in a maintenance window, as it will re-process every row.
+
+---
+
+## Summary
+
+1. **Add the columns** if they don’t exist.
+2. **Create a trigger function** (`fn_update_derived_columns`) which calculates and sets those columns from your JSON data.
+3. **Attach that function** to the table with a `BEFORE INSERT OR UPDATE` trigger.
+4. **Optionally** do a one-time backfill for existing data.
+
+From then on, **whenever you insert or update a row**, the derived columns will be automatically populated. This is the most common approach in PostgreSQL to keep JSON-derived or computed columns in sync with source fields.
+
+
+----------------------------------------------------
+postgresql+psycopg2://jobuser:your_secure_db_password@db:5432/jobsdb

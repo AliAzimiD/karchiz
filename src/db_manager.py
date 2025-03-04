@@ -185,6 +185,10 @@ class DatabaseManager:
                 )
                 """
             )
+            # Remove the primary key constraint from the staging table.
+            await conn.execute(
+                f"ALTER TABLE {self.schema}.jobs_temp DROP CONSTRAINT IF EXISTS jobs_temp_pkey"
+            )
 
             # Table for tracking batches.
             await conn.execute(
@@ -280,8 +284,25 @@ class DatabaseManager:
             # Process jobs in chunks.
             for i in range(0, len(jobs), self.batch_size):
                 chunk = jobs[i : i + self.batch_size]
+
+                # -------------------------------------------------
+                # NEW STEP: Deduplicate by 'id' within this chunk:
+                # If multiple rows have the same 'id', keep only
+                # the last one. This ensures no row is "affected"
+                # twice by ON CONFLICT within a single statement.
+                # -------------------------------------------------
+                unique_map = {}
+                for row in chunk:
+                    row_id = row.get("id")
+                    unique_map[row_id] = row  # Overwrite duplicates
+                deduped_chunk = list(unique_map.values())
+                # -------------------------------------------------
+
                 # Transform each job into a dictionary with proper type casting.
-                values = [self._transform_job_for_db(j, batch_id, batch_date) for j in chunk]
+                values = [
+                    self._transform_job_for_db(j, batch_id, batch_date)
+                    for j in deduped_chunk
+                ]
 
                 async with self.pool.acquire() as conn:
                     columns = list(values[0].keys())

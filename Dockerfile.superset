@@ -1,0 +1,12 @@
+# Dockerfile.superset
+# Extend the official Superset image
+FROM apache/superset:latest
+
+# Switch to root to install additional packages
+USER root
+
+# Install psycopg2-binary (it’s better to use psycopg2-binary for simplicity)
+RUN pip install --no-cache-dir psycopg2-binary
+
+# Reset to the default non-root user (optional, if the base image defines one)
+USER superset
