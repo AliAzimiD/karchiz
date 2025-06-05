@@ -110,11 +110,29 @@ services:
       retries: 3
       start_period: 30s
 
+  superset:
+    image: apache/superset:latest
+    container_name: superset_app
+    environment:
+      - ADMIN_PASSWORD=admin
+      - SUPERSET_SECRET_KEY=change_me
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - superset_home:/app/superset_home
+    ports:
+      - "8088:8088"
+    networks:
+      - scraper-network
+
 volumes:
   postgres_data:
     name: job_postgres_data
   pgadmin_data:
     name: job_pgadmin_data
+  superset_home:
+    name: job_superset_home
 
 networks:
   scraper-network:
