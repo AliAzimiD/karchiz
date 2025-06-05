@@ -11,6 +11,7 @@ import pandas as pd
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .config_manager import ConfigManager
+from .config_models import APIConfig, RequestConfig, ScraperConfig, DatabaseConfig
 from .db_manager import DatabaseManager
 from .log_setup import get_logger
 
@@ -39,9 +40,9 @@ class JobScraper:
 
         # Load configuration (YAML + environment overrides)
         self.config_manager = ConfigManager(config_path)
-        self.api_config: Dict[str, Any] = self.config_manager.api_config
-        self.request_config: Dict[str, Any] = self.config_manager.request_config
-        self.scraper_config: Dict[str, Any] = self.config_manager.scraper_config
+        self.api_config: APIConfig = self.config_manager.api_config
+        self.request_config: RequestConfig = self.config_manager.request_config
+        self.scraper_config: ScraperConfig = self.config_manager.scraper_config
 
         # Setup directories (if local saving is needed)
         self.save_dir = Path(save_dir)
@@ -53,22 +54,22 @@ class JobScraper:
             d.mkdir(parents=True, exist_ok=True)
 
         # Database usage config
-        database_cfg = self.scraper_config.get("database", {})
-        self.db_enabled = database_cfg.get("enabled", False)
+        database_cfg: DatabaseConfig = self.scraper_config.database
+        self.db_enabled = database_cfg.enabled
         self.db_manager = db_manager
         if self.db_enabled and not self.db_manager:
             # If the database is enabled but no db_manager was passed, create one
             self.logger.info("Database integration enabled but no manager provided; creating one.")
             db_config = self.config_manager.database_config
             self.db_manager = DatabaseManager(
-                connection_string=db_config.get("connection_string"),
-                schema=db_config.get("schema", "public"),
-                batch_size=db_config.get("batch_size", 1000),
+                connection_string=db_config.connection_string,
+                schema=db_config.schema,
+                batch_size=db_config.batch_size,
             )
 
         # API base URL + request headers
-        self.base_url: str = self.api_config["base_url"]
-        self.headers: Dict[str, str] = self.api_config["headers"]
+        self.base_url = self.api_config.base_url
+        self.headers = self.api_config.headers
 
         # Tracking counters
         self.current_batch: int = 0
@@ -76,7 +77,7 @@ class JobScraper:
         self.failed_requests: List[int] = []
 
         # Concurrency limit for HTTP requests
-        max_concurrent = self.scraper_config.get("max_concurrent_requests", 3)
+        max_concurrent = self.scraper_config.max_concurrent_requests
         self.semaphore = asyncio.Semaphore(max_concurrent)
 
         self.logger.info(
@@ -114,11 +115,11 @@ class JobScraper:
         Returns:
             Dict[str, Any]: JSON body for the POST request.
         """
-        payload = dict(self.request_config.get("default_payload", {}))
+        payload = dict(self.request_config.default_payload)
         payload.update(
             {
                 "page": page,
-                "pageSize": self.scraper_config.get("batch_size", 100),
+                "pageSize": self.scraper_config.batch_size,
                 "nextPageToken": None,
             }
         )
@@ -147,7 +148,7 @@ class JobScraper:
                 self.base_url,
                 headers=self.headers,
                 json=json_body,
-                timeout=self.scraper_config.get("timeout", 60),
+                timeout=self.scraper_config.timeout,
             ) as response:
                 response.raise_for_status()
                 data = await response.json()
@@ -262,10 +263,10 @@ class JobScraper:
             page = 1
             batch_num = 1
             current_batch_jobs: List[Dict[str, Any]] = []
-            max_pages = self.scraper_config.get("max_pages", 1000)
+            max_pages = self.scraper_config.max_pages
 
             consecutive_empty_pages = 0
-            max_empty_pages = self.scraper_config.get("max_empty_pages", 3)
+            max_empty_pages = self.scraper_config.max_empty_pages
 
             while page <= max_pages:
                 try:
@@ -297,7 +298,7 @@ class JobScraper:
                         consecutive_empty_pages = 0
                         current_batch_jobs.extend(processed_jobs)
 
-                        job_batch_size = self.scraper_config.get("jobs_per_batch", 500)
+                        job_batch_size = self.scraper_config.jobs_per_batch
                         # Once we have enough jobs to form a full batch, insert them
                         if len(current_batch_jobs) >= job_batch_size:
                             processed_count = await self._process_jobs(current_batch_jobs)
@@ -316,14 +317,14 @@ class JobScraper:
                             break
 
                     page += 1
-                    await asyncio.sleep(self.scraper_config.get("sleep_time", 1))
+                    await asyncio.sleep(self.scraper_config.sleep_time)
 
                 except Exception as e:
                     await self._handle_error(page, e)
-                    if len(self.failed_requests) >= self.scraper_config.get("max_retries", 5):
+                    if len(self.failed_requests) >= self.scraper_config.max_retries:
                         self.logger.error(f"Too many failed requests, stopping.")
                         break
-                    await asyncio.sleep(self.scraper_config.get("error_sleep_time", 2))
+                    await asyncio.sleep(self.scraper_config.error_sleep_time)
 
             # Handle any leftover jobs in final batch
             if current_batch_jobs:
@@ -402,7 +403,7 @@ class JobScraper:
 
         # If it's likely a network or timeout error, we can retry
         if isinstance(error, (aiohttp.ClientError, asyncio.TimeoutError)):
-            retry_delay = self.scraper_config.get("error_sleep_time", 2)
+            retry_delay = self.scraper_config.error_sleep_time
             self.logger.info(f"Will retry page {page} after {retry_delay} seconds.")
             await asyncio.sleep(retry_delay)
         else:
