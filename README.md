@@ -50,6 +50,16 @@ Run tests from the repository root with:
 pytest --asyncio-mode=auto --cov=src --cov-report=html
 ```
 
+Before running the tests, make sure the Python dependencies are installed:
+
+```bash
+pip install -r requirements.txt
+```
+
+If Codex does not have internet access when your environment is created,
+consider placing the install command in a `setup.sh` script so the required
+packages can be preinstalled during container setup.
+
 Configuration
 config/api_config.yaml: Main scraping + DB parameters
 Environment variables override YAML settings. Database credentials are pulled
