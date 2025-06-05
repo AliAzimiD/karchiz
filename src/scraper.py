@@ -5,10 +5,11 @@ import traceback
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import AsyncRetrying, RetryCallState, stop_after_attempt, wait_exponential
+import time
 
 from .config_manager import ConfigManager
 from .config_models import APIConfig, RequestConfig, ScraperConfig, DatabaseConfig
@@ -59,7 +60,9 @@ class JobScraper:
         self.db_manager = db_manager
         if self.db_enabled and not self.db_manager:
             # If the database is enabled but no db_manager was passed, create one
-            self.logger.info("Database integration enabled but no manager provided; creating one.")
+            self.logger.info(
+                "Database integration enabled but no manager provided; creating one."
+            )
             db_config = self.config_manager.database_config
             self.db_manager = DatabaseManager(
                 connection_string=db_config.connection_string,
@@ -98,7 +101,9 @@ class JobScraper:
                 success = await self.db_manager.initialize()
                 if not success:
                     # If DB fails, we fallback to local file saving
-                    self.logger.warning("DB initialization failed, falling back to file storage.")
+                    self.logger.warning(
+                        "DB initialization failed, falling back to file storage."
+                    )
                     self.db_enabled = False
             return True
         except Exception as e:
@@ -125,15 +130,15 @@ class JobScraper:
         )
         return payload
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def fetch_jobs(
         self,
         session: aiohttp.ClientSession,
         json_body: Dict[str, Any],
-        page: int
+        page: int,
     ) -> Optional[Dict[str, Any]]:
         """
-        Fetch jobs from the API with retry logic using tenacity.
+        Fetch jobs from the API with retry logic using tenacity. Each retry
+        attempt and the total duration are logged for visibility.
 
         Args:
             session (aiohttp.ClientSession): Shared session for HTTP requests.
@@ -143,20 +148,57 @@ class JobScraper:
         Returns:
             Optional[Dict[str, Any]]: Parsed JSON data if successful, else None.
         """
-        async with self.semaphore:
-            async with session.post(
-                self.base_url,
-                headers=self.headers,
-                json=json_body,
-                timeout=self.scraper_config.timeout,
-            ) as response:
-                response.raise_for_status()
-                data = await response.json()
-                self.logger.info(f"Successfully fetched page {page}")
-                self.logger.debug(
-                    f"Retrieved {len(data.get('data', {}).get('jobPosts', []))} jobs from page {page}"
-                )
-                return data
+
+        start_time = time.monotonic()
+        attempt_no = 0
+
+        def _log_before_sleep(retry_state: "RetryCallState") -> None:  # type: ignore
+            self.logger.warning(
+                "Request for page %s failed on attempt %s. Retrying in %.2f s",
+                page,
+                retry_state.attempt_number,
+                retry_state.next_action.sleep,
+            )
+
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=4, max=10),
+            reraise=True,
+            before_sleep=_log_before_sleep,
+        ):
+            with attempt:
+                attempt_no = attempt.retry_state.attempt_number
+                self.logger.debug("Fetching page %s (attempt %s)", page, attempt_no)
+                async with self.semaphore:
+                    async with session.post(
+                        self.base_url,
+                        headers=self.headers,
+                        json=json_body,
+                        timeout=self.scraper_config.get("timeout", 60),
+                    ) as response:
+                        response.raise_for_status()
+                        data = await response.json()
+                        self.logger.info(
+                            "Successfully fetched page %s on attempt %s in %.2f s",
+                            page,
+                            attempt_no,
+                            time.monotonic() - start_time,
+                        )
+                        self.logger.debug(
+                            "Retrieved %s jobs from page %s",
+                            len(data.get("data", {}).get("jobPosts", [])),
+                            page,
+                        )
+                        return data
+
+        # If all retries fail, return None
+        self.logger.error(
+            "Failed to fetch page %s after %s attempts (%.2f s)",
+            page,
+            attempt_no,
+            time.monotonic() - start_time,
+        )
+        return None
 
     async def process_jobs(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -201,15 +243,22 @@ class JobScraper:
 
             # If DB enabled, attempt saving to DB
             if self.db_enabled and self.db_manager:
-                self.logger.info(f"Saving {len(jobs)} jobs to DB in batch_id={batch_id}")
+                self.logger.info(
+                    f"Saving {len(jobs)} jobs to DB in batch_id={batch_id}"
+                )
                 inserted_count = await self.db_manager.insert_jobs(jobs, batch_id)
                 self.logger.info(
                     f"DB upsert complete: {inserted_count} jobs inserted/updated for batch {batch_id}"
                 )
 
                 # If database saving was successful, skip file saving if config demands
-                if inserted_count > 0 and not self.config_manager.should_save_files_with_db():
-                    self.logger.info("All jobs saved to DB; skipping file-based storage.")
+                if (
+                    inserted_count > 0
+                    and not self.config_manager.should_save_files_with_db()
+                ):
+                    self.logger.info(
+                        "All jobs saved to DB; skipping file-based storage."
+                    )
                     return inserted_count
 
             # If DB is not enabled OR we want to keep local backups, save to file
@@ -274,7 +323,9 @@ class JobScraper:
                     result = await self.fetch_jobs(session, payload, page)
 
                     if not result or not result.get("data", {}).get("jobPosts"):
-                        self.logger.info(f"No more jobs found on page {page}, stopping.")
+                        self.logger.info(
+                            f"No more jobs found on page {page}, stopping."
+                        )
                         break
 
                     jobs = result["data"]["jobPosts"]
@@ -301,11 +352,15 @@ class JobScraper:
                         job_batch_size = self.scraper_config.jobs_per_batch
                         # Once we have enough jobs to form a full batch, insert them
                         if len(current_batch_jobs) >= job_batch_size:
-                            processed_count = await self._process_jobs(current_batch_jobs)
+                            processed_count = await self._process_jobs(
+                                current_batch_jobs
+                            )
                             self.total_jobs_scraped += processed_count
 
                             # Save state
-                            await self._save_batch_with_state(current_batch_jobs, batch_num, page)
+                            await self._save_batch_with_state(
+                                current_batch_jobs, batch_num, page
+                            )
                             batch_num += 1
                             current_batch_jobs = []
                     else:
@@ -321,7 +376,11 @@ class JobScraper:
 
                 except Exception as e:
                     await self._handle_error(page, e)
-                    if len(self.failed_requests) >= self.scraper_config.max_retries:
+
+                    if len(self.failed_requests) >= self.scraper_config.get(
+                        "max_retries", 5
+                    ):
+
                         self.logger.error(f"Too many failed requests, stopping.")
                         break
                     await asyncio.sleep(self.scraper_config.error_sleep_time)
@@ -352,7 +411,9 @@ class JobScraper:
             "last_run": datetime.now().isoformat(),
         }
         self.config_manager.save_state(current_state)
-        self.logger.debug(f"Updated state after batch {batch_num} on page {current_page}")
+        self.logger.debug(
+            f"Updated state after batch {batch_num} on page {current_page}"
+        )
 
     async def _log_final_statistics(self, pages_processed: int) -> None:
         """
@@ -372,7 +433,9 @@ class JobScraper:
             self.logger.info(f"{k}: {v}")
 
         try:
-            self.config_manager.save_state({"last_run_stats": stats, "scraping_complete": True})
+            self.config_manager.save_state(
+                {"last_run_stats": stats, "scraping_complete": True}
+            )
         except Exception as e:
             self.logger.error(f"Failed to save final statistics: {str(e)}")
 

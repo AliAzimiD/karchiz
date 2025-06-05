@@ -28,10 +28,7 @@ class DatabaseManager:
     """
 
     def __init__(
-        self,
-        connection_string: str,
-        schema: str = "public",
-        batch_size: int = 1000
+        self, connection_string: str, schema: str = "public", batch_size: int = 1000
     ) -> None:
         """
         Initialize the database manager with connection details.
@@ -55,6 +52,9 @@ class DatabaseManager:
             "total_batches": 0,
             "failed_operations": 0,
             "avg_insertion_time": 0.0,
+            # Error counters
+            "connection_errors": 0,
+            "insertion_errors": 0,
         }
 
     async def initialize(self) -> bool:
@@ -85,6 +85,7 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to initialize database: {str(e)}")
             logger.error(traceback.format_exc())
+            self.metrics["connection_errors"] += 1
             return False
 
     def _parse_connection_string(self, conn_string: str) -> Dict[str, Union[str, int]]:
@@ -281,7 +282,9 @@ class DatabaseManager:
             for i in range(0, len(jobs), self.batch_size):
                 chunk = jobs[i : i + self.batch_size]
                 # Transform each job into a dictionary with proper type casting.
-                values = [self._transform_job_for_db(j, batch_id, batch_date) for j in chunk]
+                values = [
+                    self._transform_job_for_db(j, batch_id, batch_date) for j in chunk
+                ]
 
                 async with self.pool.acquire() as conn:
                     columns = list(values[0].keys())
@@ -291,7 +294,9 @@ class DatabaseManager:
                         await conn.execute(f"TRUNCATE TABLE {self.schema}.jobs_temp")
 
                         # Convert each job dictionary to a list of values.
-                        records = [[row_dict[col] for col in columns] for row_dict in values]
+                        records = [
+                            [row_dict[col] for col in columns] for row_dict in values
+                        ]
 
                         # --- DEBUG STEP ---
                         # Iterate over each record and each column.
@@ -299,14 +304,29 @@ class DatabaseManager:
                         for row_index, record in enumerate(records):
                             for col_index, cell_value in enumerate(record):
                                 if columns[col_index] in [
-                                    "id", "title", "url", "gender", "province_match_city",
-                                    "payment_method", "district", "company_fa_name",
-                                    "company_title_fa", "job_board_id", "job_board_title_en",
-                                    "company_id", "company_name_fa", "company_name_en",
-                                    "company_about", "company_url", "location_ids",
-                                    "tag_number", "batch_id"
+                                    "id",
+                                    "title",
+                                    "url",
+                                    "gender",
+                                    "province_match_city",
+                                    "payment_method",
+                                    "district",
+                                    "company_fa_name",
+                                    "company_title_fa",
+                                    "job_board_id",
+                                    "job_board_title_en",
+                                    "company_id",
+                                    "company_name_fa",
+                                    "company_name_en",
+                                    "company_about",
+                                    "company_url",
+                                    "location_ids",
+                                    "tag_number",
+                                    "batch_id",
                                 ]:
-                                    if cell_value is not None and not isinstance(cell_value, str):
+                                    if cell_value is not None and not isinstance(
+                                        cell_value, str
+                                    ):
                                         logger.error(
                                             f"DEBUG: Potential mismatch at record {row_index}, "
                                             f"column '{columns[col_index]}' - found {type(cell_value).__name__} value: {cell_value}"
@@ -317,7 +337,7 @@ class DatabaseManager:
                             table_name="jobs_temp",
                             records=records,
                             columns=columns,
-                            schema_name=self.schema
+                            schema_name=self.schema,
                         )
 
                         # Build the upsert query.
@@ -338,20 +358,20 @@ class DatabaseManager:
 
             processing_time = time.time() - start_time
             await self._complete_batch(batch_id, batch_date, len(jobs), processing_time)
-            logger.info(f"Upsert completed for batch {batch_id} - total rows: {inserted_count}")
+            logger.info(
+                f"Upsert completed for batch {batch_id} - total rows: {inserted_count}"
+            )
             return inserted_count
 
         except Exception as e:
             logger.error(f"Error inserting jobs into database: {str(e)}")
             logger.error(traceback.format_exc())
+            self.metrics["insertion_errors"] += 1
             await self._fail_batch(batch_id, batch_date, str(e))
             return 0
 
     def _transform_job_for_db(
-        self,
-        job: Dict[str, Any],
-        batch_id: str,
-        batch_date: datetime
+        self, job: Dict[str, Any], batch_id: str, batch_date: datetime
     ) -> Dict[str, Any]:
         """
         Transform a raw job dictionary into a dictionary suitable for DB insertion.
@@ -371,7 +391,11 @@ class DatabaseManager:
         if "activationTime" in job and isinstance(job["activationTime"], dict):
             date_str = job["activationTime"].get("date")
             if date_str:
-                for fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"]:
+                for fmt in [
+                    "%Y-%m-%dT%H:%M:%S.%f",
+                    "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%dT%H:%M",
+                ]:
                     try:
                         activation_time = datetime.strptime(date_str, fmt)
                         break
@@ -390,7 +414,9 @@ class DatabaseManager:
                         location_ids.append(province_obj["id"])
                     if city_obj and "id" in city_obj:
                         location_ids.append(city_obj["id"])
-        location_ids_str = ",".join(f"{lid_:03d}" for lid_ in location_ids) if location_ids else ""
+        location_ids_str = (
+            ",".join(f"{lid_:03d}" for lid_ in location_ids) if location_ids else ""
+        )
 
         # Return the transformed job record.
         # Note: For columns defined as TEXT in the schema, we convert the value to a string.
@@ -404,22 +430,83 @@ class DatabaseManager:
             "gender": str(job.get("gender")) if job.get("gender") is not None else None,
             "tags": self._safe_json_dumps(job.get("tags", [])),
             "item_index": job.get("itemIndex"),
-            "job_post_categories": self._safe_json_dumps(job.get("jobPostCategories", [])),
-            "company_fa_name": str(job.get("companyFaName")) if job.get("companyFaName") is not None else None,
-            "province_match_city": str(job.get("provinceMatchCity")) if job.get("provinceMatchCity") is not None else None,
-            "normalize_salary_min": float(job.get("normalizeSalaryMin")) if job.get("normalizeSalaryMin") is not None else None,
-            "normalize_salary_max": float(job.get("normalizeSalaryMax")) if job.get("normalizeSalaryMax") is not None else None,
-            "payment_method": str(job.get("paymentMethod")) if job.get("paymentMethod") is not None else None,
-            "district": str(job.get("district")) if job.get("district") is not None else None,
-            "company_title_fa": str(job.get("companyTitleFa")) if job.get("companyTitleFa") is not None else None,
-            "job_board_id": str(job.get("jobBoardId")) if job.get("jobBoardId") is not None else None,
-            "job_board_title_en": str(job.get("jobBoardTitleEn")) if job.get("jobBoardTitleEn") is not None else None,
+            "job_post_categories": self._safe_json_dumps(
+                job.get("jobPostCategories", [])
+            ),
+            "company_fa_name": (
+                str(job.get("companyFaName"))
+                if job.get("companyFaName") is not None
+                else None
+            ),
+            "province_match_city": (
+                str(job.get("provinceMatchCity"))
+                if job.get("provinceMatchCity") is not None
+                else None
+            ),
+            "normalize_salary_min": (
+                float(job.get("normalizeSalaryMin"))
+                if job.get("normalizeSalaryMin") is not None
+                else None
+            ),
+            "normalize_salary_max": (
+                float(job.get("normalizeSalaryMax"))
+                if job.get("normalizeSalaryMax") is not None
+                else None
+            ),
+            "payment_method": (
+                str(job.get("paymentMethod"))
+                if job.get("paymentMethod") is not None
+                else None
+            ),
+            "district": (
+                str(job.get("district")) if job.get("district") is not None else None
+            ),
+            "company_title_fa": (
+                str(job.get("companyTitleFa"))
+                if job.get("companyTitleFa") is not None
+                else None
+            ),
+            "job_board_id": (
+                str(job.get("jobBoardId"))
+                if job.get("jobBoardId") is not None
+                else None
+            ),
+            "job_board_title_en": (
+                str(job.get("jobBoardTitleEn"))
+                if job.get("jobBoardTitleEn") is not None
+                else None
+            ),
             "activation_time": activation_time,
-            "company_id": str(job.get("companyDetailsSummary", {}).get("id")) if job.get("companyDetailsSummary", {}).get("id") is not None else None,
-            "company_name_fa": str(job.get("companyDetailsSummary", {}).get("name", {}).get("titleFa")) if job.get("companyDetailsSummary", {}).get("name", {}).get("titleFa") is not None else None,
-            "company_name_en": str(job.get("companyDetailsSummary", {}).get("name", {}).get("titleEn")) if job.get("companyDetailsSummary", {}).get("name", {}).get("titleEn") is not None else None,
-            "company_about": str(job.get("companyDetailsSummary", {}).get("about", {}).get("titleFa")) if job.get("companyDetailsSummary", {}).get("about", {}).get("titleFa") is not None else None,
-            "company_url": str(job.get("companyDetailsSummary", {}).get("url")) if job.get("companyDetailsSummary", {}).get("url") is not None else None,
+            "company_id": (
+                str(job.get("companyDetailsSummary", {}).get("id"))
+                if job.get("companyDetailsSummary", {}).get("id") is not None
+                else None
+            ),
+            "company_name_fa": (
+                str(job.get("companyDetailsSummary", {}).get("name", {}).get("titleFa"))
+                if job.get("companyDetailsSummary", {}).get("name", {}).get("titleFa")
+                is not None
+                else None
+            ),
+            "company_name_en": (
+                str(job.get("companyDetailsSummary", {}).get("name", {}).get("titleEn"))
+                if job.get("companyDetailsSummary", {}).get("name", {}).get("titleEn")
+                is not None
+                else None
+            ),
+            "company_about": (
+                str(
+                    job.get("companyDetailsSummary", {}).get("about", {}).get("titleFa")
+                )
+                if job.get("companyDetailsSummary", {}).get("about", {}).get("titleFa")
+                is not None
+                else None
+            ),
+            "company_url": (
+                str(job.get("companyDetailsSummary", {}).get("url"))
+                if job.get("companyDetailsSummary", {}).get("url") is not None
+                else None
+            ),
             "location_ids": location_ids_str,
             "tag_number": self._extract_tag_number(job),
             "raw_data": self._safe_json_dumps(job),
@@ -476,7 +563,9 @@ class DatabaseManager:
             else:
                 return '""'
 
-    async def _start_batch(self, batch_id: str, batch_date: datetime, job_count: int) -> None:
+    async def _start_batch(
+        self, batch_id: str, batch_date: datetime, job_count: int
+    ) -> None:
         """
         Record the start of a batch by inserting a record into the job_batches table.
 
@@ -514,7 +603,7 @@ class DatabaseManager:
         batch_id: str,
         batch_date: datetime,
         job_count: int,
-        processing_time: float
+        processing_time: float,
     ) -> None:
         """
         Mark a batch as complete by updating the job_batches table.
@@ -551,10 +640,7 @@ class DatabaseManager:
             logger.error(f"Failed to record batch completion for {batch_id}: {str(e)}")
 
     async def _fail_batch(
-        self,
-        batch_id: str,
-        batch_date: datetime,
-        error_message: str
+        self, batch_id: str, batch_date: datetime, error_message: str
     ) -> None:
         """
         Mark a batch as failed in the job_batches table, storing the error message.
@@ -602,6 +688,17 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting job count: {str(e)}")
             return 0
+
+    def get_metrics(self) -> Dict[str, Union[int, float]]:
+        """Return a copy of the internal metrics dictionary."""
+        return dict(self.metrics)
+
+    async def get_job_stats(self) -> Dict[str, Any]:
+        """Combine database job count with internal metrics."""
+        count = await self.get_job_count()
+        stats: Dict[str, Any] = {"job_count": count}
+        stats.update(self.get_metrics())
+        return stats
 
     async def record_scraper_stats(self, stats: Dict[str, Any]) -> bool:
         """

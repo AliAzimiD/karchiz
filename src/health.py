@@ -51,6 +51,7 @@ class HealthCheck:
             ["type"],
         )
 
+
         self.app.add_routes(
             [
                 web.get("/health", self.health_check),
@@ -109,17 +110,27 @@ class HealthCheck:
         """
         self.request_counter.labels(endpoint="metrics").inc()
         try:
-            job_count = await self.db_manager.get_job_count()
-            self.job_count_gauge.set(job_count)
-            memory = self._get_memory_usage()
-            self.memory_usage_gauge.labels("rss").set(memory["rss_mb"])
-            self.memory_usage_gauge.labels("vms").set(memory["vms_mb"])
 
-            metrics_output = generate_latest()
-            return web.Response(body=metrics_output, content_type=CONTENT_TYPE_LATEST)
+          
+            job_stats = await self.db_manager.get_job_stats()
+            data = {
+                "metrics": {
+                    "database": job_stats,
+                    "system": {"memory_usage": self._get_memory_usage()},
+                },
+                "timestamp": str(datetime.now()),
+            }
+            return web.json_response(data)
         except Exception as e:
             logger.error(f"Metrics endpoint failed: {str(e)}")
-            return web.json_response({"status": "error", "error": str(e)}, status=500)
+            return web.json_response(
+                {
+                    "status": "error",
+                    "error": str(e),
+                },
+                status=500,
+            )
+
 
     def _get_memory_usage(self) -> dict:
         """
