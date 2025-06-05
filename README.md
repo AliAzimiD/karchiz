@@ -41,24 +41,19 @@ The scraper container runs automatically, uses a cron job to schedule repeated s
 3. `python main.py`
 
 ## Testing
-Tests are in `tests/`; run with:
+The project uses `pytest` with the `pytest-asyncio` plugin. Both packages are
+included in `requirements.txt`.
+
+Run tests from the repository root with:
+
 ```bash
 pytest --asyncio-mode=auto --cov=src --cov-report=html
-Configuration
-config/api_config.yaml: Main scraping + DB parameters
-Environment variables override YAML settings:
-SCRAPER_ENV, POSTGRES_HOST, LOG_LEVEL, etc.
-CI/CD
-Minimal example in .github/workflows/ci.yml sets up mypy checks, lint, bandit, tests, code coverage.
-
 ## Monitoring
-`health.py` exposes `/health` and `/metrics`. The `/metrics` endpoint now serves
-Prometheus formatted metrics using `prometheus_client`. When running with the
-provided Docker Compose file, port `8080` is mapped so a Prometheus server can
-scrape metrics from `http://localhost:8080/metrics`.
+`health.py` exposes `/health` and `/metrics`. The `/metrics` endpoint now serves Prometheus-formatted metrics using `prometheus_client`.
 
-Integration with Prometheus or other monitoring solutions is straightforward—
-add a scrape job pointing at the above URL.
+When running with the provided Docker Compose file, port `8080` is mapped, so a Prometheus server can scrape metrics from `http://localhost:8080/metrics`.
+
+Integration with Prometheus or other monitoring solutions is straightforward—just add a scrape job pointing at the above URL.
 Security & Secrets
 Uses Docker secrets (db_password_file) for DB.
 For advanced production, adopt AWS Secrets Manager, Vault, or other secure secret retrieval.
