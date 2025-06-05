@@ -104,6 +104,12 @@ file specified by `APP_DB_PASSWORD_FILE` (set in `docker-compose.yml` to
 `/run/secrets/db_password` which maps to `secrets/db_password.txt`) and exports
 it as `APP_DB_PASSWORD` for Superset.
 
+If you need to connect Superset to a different PostgreSQL instance, set the
+`APP_DB_URI` environment variable for the `superset` service. When provided, this
+full SQLAlchemy URI overrides the individual host and credential variables. The
+helper script now verifies the connection before registering it with Superset and
+logs any connection errors for easier debugging.
+
 Once running, visit [http://localhost:8088](http://localhost:8088) and log in
 using the default credentials `admin`/`admin`. Superset is pre-configured to
 connect to the `jobsdb` database so you can start building charts immediately.
