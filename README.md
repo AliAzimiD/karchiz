@@ -65,12 +65,19 @@ PostgreSQL data. Start the service with:
 docker-compose up -d superset
 ```
 
-The container automatically initializes its database, creates the default
-`admin` account, and registers the included PostgreSQL instance. Once running,
-visit [http://localhost:8088](http://localhost:8088) and log in using the
-default credentials `admin` / `admin`. Superset is pre-configured to connect to
-the `jobsdb` database so you can start building charts immediately. The container
-installs the PostgreSQL driver at startup using
+The `superset` service executes `superset-init.sh` which upgrades the Superset
+database, creates the default `admin` account and runs the helper script
+`scripts/create_superset_connection.py` to automatically register the
+`jobsdb` database connection. The script reads the database password from the
+file specified by `APP_DB_PASSWORD_FILE` (set in `docker-compose.yml` to
+`/run/secrets/db_password` which maps to `secrets/db_password.txt`) and exports
+it as `APP_DB_PASSWORD` for Superset.
+
+Once running, visit [http://localhost:8088](http://localhost:8088) and log in
+using the default credentials `admin`/`admin`. Superset is pre-configured to
+connect to the `jobsdb` database so you can start building charts immediately.
+The container installs the PostgreSQL driver at startup using
+
 `PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary`.
 
 
