@@ -65,9 +65,11 @@ PostgreSQL data. Start the service with:
 docker-compose up -d superset
 ```
 
-Then visit [http://localhost:8088](http://localhost:8088) and log in using the default credentials
-`admin` / `admin`. Configure a new Postgres database connection pointing to the `db` service to
-build charts and dashboards.
+The container automatically initializes its database, creates the default
+`admin` account, and registers the included PostgreSQL instance. Once running,
+visit [http://localhost:8088](http://localhost:8088) and log in using the
+default credentials `admin` / `admin`. Superset is pre-configured to connect to
+the `jobsdb` database so you can start building charts immediately.
 Monitoring
 health.py listens on /health and /metrics.
 Integration with Prometheus or other monitoring solutions is possible by adding Prometheus exporters.
