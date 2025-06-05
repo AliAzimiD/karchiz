@@ -15,5 +15,11 @@ superset fab create-admin \
 # Set up roles and permissions
 superset init
 
+# Configure default database connection in Superset
+if [ -f "${APP_DB_PASSWORD_FILE:-/run/secrets/db_password}" ]; then
+  export APP_DB_PASSWORD="$(cat ${APP_DB_PASSWORD_FILE:-/run/secrets/db_password})"
+fi
+python /app/scripts/create_superset_connection.py || true
+
 # Start the Superset server
 /usr/bin/run-server.sh

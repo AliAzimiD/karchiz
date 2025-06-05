@@ -116,17 +116,25 @@ services:
     environment:
       - ADMIN_PASSWORD=admin
       - SUPERSET_SECRET_KEY=change_me
+      - APP_DB_HOST=${POSTGRES_HOST:-db}
+      - APP_DB_PORT=${POSTGRES_PORT:-5432}
+      - APP_DB_NAME=${POSTGRES_DB:-jobsdb}
+      - APP_DB_USER=${POSTGRES_USER:-jobuser}
+      - APP_DB_PASSWORD_FILE=/run/secrets/db_password
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - superset_home:/app/superset_home
       - ./superset-init.sh:/app/superset-init.sh
+      - ./scripts:/app/scripts:ro
     ports:
       - "8088:8088"
     command: ["/bin/bash", "/app/superset-init.sh"]
     networks:
       - scraper-network
+    secrets:
+      - db_password
 
 volumes:
   postgres_data:
