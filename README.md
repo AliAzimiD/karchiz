@@ -72,6 +72,12 @@ default credentials `admin` / `admin`. Superset is pre-configured to connect to
 the `jobsdb` database so you can start building charts immediately. The container
 installs the PostgreSQL driver at startup using
 `PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary`.
+
+
+Monitoring
+health.py listens on /health and /metrics.
+Integration with Prometheus or other monitoring solutions is possible by adding Prometheus exporters.
+
 ## Monitoring
 `health.py` exposes `/health` and `/metrics`. The `/metrics` endpoint now serves Prometheus-formatted metrics using `prometheus_client`.
 
