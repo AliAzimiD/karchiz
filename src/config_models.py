@@ -3,20 +3,30 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class APIConfig(BaseModel):
+class ConfigBase(BaseModel):
+    """Base model that supports dict-style access."""
+
+    def __getitem__(self, item: str):
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
+
+class APIConfig(ConfigBase):
     """Configuration options for the API section."""
 
-    base_url: str = Field(..., description="Base URL for the API endpoint")
-    headers: Dict[str, str] = Field(..., description="HTTP headers to include")
+    base_url: str = Field("", description="Base URL for the API endpoint")
+    headers: Dict[str, str] = Field(default_factory=dict, description="HTTP headers to include")
 
 
-class RequestConfig(BaseModel):
+class RequestConfig(ConfigBase):
     """Default request payload settings."""
 
     default_payload: Dict[str, Any] = Field(default_factory=dict)
 
 
-class DatabaseConfig(BaseModel):
+class DatabaseConfig(ConfigBase):
     """Database related configuration."""
 
     enabled: bool = False
@@ -29,67 +39,67 @@ class DatabaseConfig(BaseModel):
     retry_delay: int = 5
 
 
-class RateLimitConfig(BaseModel):
+class RateLimitConfig(ConfigBase):
     requests_per_minute: int = 60
     burst: int = 5
 
 
-class RetryDelayConfig(BaseModel):
+class RetryDelayConfig(ConfigBase):
     min: int = 2
     max: int = 10
 
 
-class StateTrackingConfig(BaseModel):
+class StateTrackingConfig(ConfigBase):
     enabled: bool = True
     save_interval: int = 300
     backup_count: int = 3
 
 
-class TimestampSettings(BaseModel):
+class TimestampSettings(ConfigBase):
     format: str = "%Y-%m-%dT%H:%M:%S.%fZ"
     timezone: str = "UTC"
 
 
-class DeduplicationConfig(BaseModel):
+class DeduplicationConfig(ConfigBase):
     enabled: bool = True
     method: str = "id_based"
     cache_size: int = 10000
 
 
-class MonitoringConfig(BaseModel):
+class MonitoringConfig(ConfigBase):
     enabled: bool = False
     metrics: List[str] = Field(default_factory=list)
     alert_thresholds: Dict[str, int] = Field(default_factory=dict)
 
 
-class ValidationConfig(BaseModel):
+class ValidationConfig(ConfigBase):
     enabled: bool = False
     required_fields: List[str] = Field(default_factory=list)
 
 
-class OutputConfig(BaseModel):
+class OutputConfig(ConfigBase):
     format: str = "json"
     compression: bool = True
     batch_prefix: str = "batch_"
     timestamp_format: str = "%Y%m%d_%H%M%S"
 
 
-class CleanupConfig(BaseModel):
+class CleanupConfig(ConfigBase):
     enabled: bool = True
     max_age_days: int = 7
     keep_last_n_batches: int = 50
 
 
-class DebugConfig(BaseModel):
+class DebugConfig(ConfigBase):
     enabled: bool = False
     verbose_logging: bool = False
     save_raw_responses: bool = False
 
 
-class ScraperConfig(BaseModel):
+class ScraperConfig(ConfigBase):
     """Main scraper configuration options."""
 
-    database: DatabaseConfig
+    database: DatabaseConfig = DatabaseConfig()
     batch_size: int = 100
     jobs_per_batch: int = 1000
     max_pages: int = 1000
@@ -116,7 +126,7 @@ class ScraperConfig(BaseModel):
     error_sleep_time: int = 2
 
 
-class AppConfig(BaseModel):
-    api: APIConfig
-    request: RequestConfig
-    scraper: ScraperConfig
+class AppConfig(ConfigBase):
+    api: APIConfig = APIConfig()
+    request: RequestConfig = RequestConfig()
+    scraper: ScraperConfig = ScraperConfig()
