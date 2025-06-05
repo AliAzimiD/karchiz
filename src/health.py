@@ -1,18 +1,20 @@
 import asyncio
-import logging
 import json
+import logging
 import os
 from datetime import datetime
-from typing import Optional, Tuple, Any
+from typing import Any, Optional, Tuple
 
 import aiohttp
-from aiohttp import web
 import psutil
+from aiohttp import web
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_latest
 
 from .db_manager import DatabaseManager
 from .log_setup import get_logger
 
 logger = get_logger("health_check")
+
 
 class HealthCheck:
     """
@@ -32,10 +34,29 @@ class HealthCheck:
         """
         self.db_manager = db_manager
         self.app = web.Application()
-        self.app.add_routes([
-            web.get('/health', self.health_check),
-            web.get('/metrics', self.metrics),
-        ])
+
+        # Prometheus metrics setup
+        self.request_counter = Counter(
+            "health_requests_total",
+            "Total HTTP requests to health endpoints",
+            ["endpoint"],
+        )
+        self.job_count_gauge = Gauge(
+            "job_count",
+            "Total jobs stored in the database",
+        )
+        self.memory_usage_gauge = Gauge(
+            "memory_usage_mb",
+            "Process memory usage in megabytes",
+            ["type"],
+        )
+
+        self.app.add_routes(
+            [
+                web.get("/health", self.health_check),
+                web.get("/metrics", self.metrics),
+            ]
+        )
 
     async def health_check(self, request: web.Request) -> web.Response:
         """
@@ -47,11 +68,17 @@ class HealthCheck:
         Returns:
             web.Response: JSON response containing health status.
         """
+        self.request_counter.labels(endpoint="health").inc()
         try:
             if not self.db_manager.is_connected:
                 await self.db_manager.initialize()
 
             job_count = await self.db_manager.get_job_count()
+            self.job_count_gauge.set(job_count)
+            memory = self._get_memory_usage()
+            self.memory_usage_gauge.labels("rss").set(memory["rss_mb"])
+            self.memory_usage_gauge.labels("vms").set(memory["vms_mb"])
+
             data = {
                 "status": "healthy",
                 "database": "connected",
@@ -61,11 +88,14 @@ class HealthCheck:
             return web.json_response(data)
         except Exception as e:
             logger.error(f"Health check failed: {str(e)}")
-            return web.json_response({
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": str(datetime.now()),
-            }, status=500)
+            return web.json_response(
+                {
+                    "status": "unhealthy",
+                    "error": str(e),
+                    "timestamp": str(datetime.now()),
+                },
+                status=500,
+            )
 
     async def metrics(self, request: web.Request) -> web.Response:
         """
@@ -77,22 +107,19 @@ class HealthCheck:
         Returns:
             web.Response: JSON response with metrics data.
         """
+        self.request_counter.labels(endpoint="metrics").inc()
         try:
-            job_stats = await self.db_manager.get_job_stats()
-            data = {
-                "metrics": {
-                    "jobs": job_stats,
-                    "system": {"memory_usage": self._get_memory_usage()},
-                },
-                "timestamp": str(datetime.now()),
-            }
-            return web.json_response(data)
+            job_count = await self.db_manager.get_job_count()
+            self.job_count_gauge.set(job_count)
+            memory = self._get_memory_usage()
+            self.memory_usage_gauge.labels("rss").set(memory["rss_mb"])
+            self.memory_usage_gauge.labels("vms").set(memory["vms_mb"])
+
+            metrics_output = generate_latest()
+            return web.Response(body=metrics_output, content_type=CONTENT_TYPE_LATEST)
         except Exception as e:
             logger.error(f"Metrics endpoint failed: {str(e)}")
-            return web.json_response({
-                "status": "error",
-                "error": str(e),
-            }, status=500)
+            return web.json_response({"status": "error", "error": str(e)}, status=500)
 
     def _get_memory_usage(self) -> dict:
         """
@@ -107,7 +134,9 @@ class HealthCheck:
             "vms_mb": process.memory_info().vms / (1024 * 1024),
         }
 
-    async def start(self, host: str = "0.0.0.0", port: int = 8080) -> Tuple[web.AppRunner, web.TCPSite]:
+    async def start(
+        self, host: str = "0.0.0.0", port: int = 8080
+    ) -> Tuple[web.AppRunner, web.TCPSite]:
         """
         Start the aiohttp server for health checks and metrics.
 
