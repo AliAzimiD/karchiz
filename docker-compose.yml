@@ -12,10 +12,10 @@ services:
     environment:
       - SCRAPER_ENV=production
       - TZ=Asia/Tehran
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=jobsdb
-      - POSTGRES_USER=jobuser
+      - POSTGRES_HOST=${POSTGRES_HOST:-db}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-jobsdb}
+      - POSTGRES_USER=${POSTGRES_USER:-jobuser}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
       - ENABLE_CRON=true
       - RUN_ON_START=true
@@ -60,8 +60,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
     environment:
-      - POSTGRES_DB=jobsdb
-      - POSTGRES_USER=jobuser
+      - POSTGRES_DB=${POSTGRES_DB:-jobsdb}
+      - POSTGRES_USER=${POSTGRES_USER:-jobuser}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
       - POSTGRES_INITDB_ARGS="--data-checksums"
     secrets:
