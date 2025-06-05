@@ -44,6 +44,15 @@ The scraper container runs automatically, uses a cron job to schedule repeated s
 The project uses `pytest` with the `pytest-asyncio` plugin. Both packages are
 included in `requirements.txt`.
 
+Before running the tests make sure all dependencies are installed:
+
+```bash
+pip install -r requirements.txt
+```
+
+If Codex doesn't have internet access you can prepare a `setup.sh` script to
+install the packages during container startup.
+
 Run tests from the repository root with:
 
 ```bash
