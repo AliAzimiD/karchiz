@@ -122,6 +122,7 @@ services:
       - APP_DB_USER=${POSTGRES_USER:-jobuser}
       - APP_DB_PASSWORD_FILE=/run/secrets/db_password
       - PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary
+
     depends_on:
       db:
         condition: service_healthy
@@ -129,6 +130,7 @@ services:
       - superset_home:/app/superset_home
       - ./superset-init.sh:/app/superset-init.sh
       - ./scripts:/app/scripts:ro
+      
     ports:
       - "8088:8088"
     command: ["/bin/bash", "/app/superset-init.sh"]
