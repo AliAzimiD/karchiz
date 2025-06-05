@@ -70,7 +70,10 @@ The container automatically initializes its database, creates the default
 `admin` account, and registers the included PostgreSQL instance. Once running,
 visit [http://localhost:8088](http://localhost:8088) and log in using the
 default credentials `admin` / `admin`. Superset is pre-configured to connect to
-the `jobsdb` database so you can start building charts immediately.
+the `jobsdb` database so you can start building charts immediately. The container
+installs the PostgreSQL driver at startup using
+`PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary`.
+
 Monitoring
 health.py listens on /health and /metrics.
 Integration with Prometheus or other monitoring solutions is possible by adding Prometheus exporters.

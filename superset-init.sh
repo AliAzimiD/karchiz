@@ -21,6 +21,5 @@ if [ -f "${APP_DB_PASSWORD_FILE:-/run/secrets/db_password}" ]; then
 fi
 python /app/scripts/create_superset_connection.py || true
 
-
 # Start the Superset server
 /usr/bin/run-server.sh

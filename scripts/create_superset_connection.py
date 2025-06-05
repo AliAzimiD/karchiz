@@ -11,8 +11,10 @@ with app.app_context():
     name = os.environ.get("APP_DB_NAME", "jobsdb")
     user = os.environ.get("APP_DB_USER", "jobuser")
     password = os.environ.get("APP_DB_PASSWORD", "")
+    uri = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
-    uri = f"postgresql://{user}:{password}@{host}:{port}/{name}"
+
+
 
     if not Database.query.filter_by(database_name=name).first():
         db_obj = Database(database_name=name, sqlalchemy_uri=uri)
