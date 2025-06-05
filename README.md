@@ -5,11 +5,23 @@ A Python 3.11+ asynchronous application that scrapes job postings from remote AP
 
 ## Directory Structure
 
-job_scraper/ ├── Dockerfile ├── docker-compose.yml ├── main.py ├── src/ │ ├── log_setup.py <-- Central logging config │ ├── scraper.py │ ├── scheduler.py │ ├── db_manager.py │ ├── config_manager.py │ ├── health.py ├── tests/ │ ├── test_db_manager.py │ └── test_scraper.py └── ...
-
-perl
-Copy
-Edit
+```
+job_scraper/
+├── Dockerfile
+├── docker-compose.yml
+├── main.py
+├── src/
+│   ├── log_setup.py        # Central logging config
+│   ├── scraper.py
+│   ├── scheduler.py
+│   ├── db_manager.py
+│   ├── config_manager.py
+│   └── health.py
+├── tests/
+│   ├── test_db_manager.py
+│   └── test_scraper.py
+└── ...
+```
 
 ## Major Components
 1. **`main.py`**  
