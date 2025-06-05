@@ -14,8 +14,6 @@ with app.app_context():
     uri = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
 
-
-
     if not Database.query.filter_by(database_name=name).first():
         db_obj = Database(database_name=name, sqlalchemy_uri=uri)
         db.session.add(db_obj)
