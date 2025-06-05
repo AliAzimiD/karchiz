@@ -125,8 +125,8 @@ services:
       - superset_home:/app/superset_home
     command: >
       /bin/bash -c '
-        DB_PASS=$(cat /run/secrets/db_password) &&
-        export SQLALCHEMY_DATABASE_URI="postgresql+psycopg2://jobuser:$DB_PASS@db:5432/jobsdb" &&
+        DB_PASS=$$(cat /run/secrets/db_password) &&
+        export SQLALCHEMY_DATABASE_URI="postgresql+psycopg2://jobuser:$$DB_PASS@db:5432/jobsdb" &&
         superset fab create-admin --username admin --password admin --firstname Admin --lastname User --email admin@example.com &&
         superset db upgrade &&
         superset init &&
