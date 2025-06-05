@@ -10,6 +10,7 @@ import asyncpg
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
+from pathlib import Path
 
 from .log_setup import get_logger
 
@@ -56,6 +57,17 @@ class DatabaseManager:
             "connection_errors": 0,
             "insertion_errors": 0,
         }
+
+    async def _execute_sql_file(self, conn: asyncpg.Connection, sql_path: Path) -> None:
+        """Execute a .sql file replacing the %SCHEMA% placeholder."""
+        try:
+            content = sql_path.read_text()
+            content = content.replace("%SCHEMA%", self.schema)
+            statements = [s.strip() for s in content.split(";") if s.strip()]
+            for stmt in statements:
+                await conn.execute(stmt)
+        except Exception as exc:
+            logger.error(f"Failed executing SQL from {sql_path}: {exc}")
 
     async def initialize(self) -> bool:
         """
@@ -138,6 +150,12 @@ class DatabaseManager:
             # Ensure the schema exists.
             await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
 
+            # Create normalized schema from blueprint
+            sql_file = Path(__file__).resolve().parents[1] / "scripts" / "schema_blueprint.sql"
+            if sql_file.exists():
+                await self._execute_sql_file(conn, sql_file)
+
+            
             # Main jobs table.
             await conn.execute(
                 f"""
@@ -145,35 +163,25 @@ class DatabaseManager:
                     id TEXT PRIMARY KEY,
                     title TEXT,
                     url TEXT,
-                    locations JSONB,
-                    work_types JSONB,
-                    salary JSONB,
                     gender TEXT,
-                    tags JSONB,
-                    item_index INTEGER,
-                    job_post_categories JSONB,
-                    company_fa_name TEXT,
-                    province_match_city TEXT,
-                    normalize_salary_min FLOAT,
-                    normalize_salary_max FLOAT,
-                    payment_method TEXT,
-                    district TEXT,
-                    company_title_fa TEXT,
-                    job_board_id TEXT,
-                    job_board_title_en TEXT,
-                    activation_time TIMESTAMP,
+                    salary TEXT,
                     company_id TEXT,
-                    company_name_fa TEXT,
-                    company_name_en TEXT,
-                    company_about TEXT,
-                    company_url TEXT,
-                    location_ids TEXT,
-                    tag_number TEXT,
+                    job_board_id INT,
                     raw_data JSONB,
+                    job_board_title_en TEXT,
+                    job_board_title_fa TEXT,
+                    primary_city TEXT,
+                    work_type TEXT,
+                    category TEXT,
+                    parent_cat TEXT,
+                    sub_cat TEXT,
+                    tag_no_experience INT DEFAULT 0,
+                    tag_remote INT DEFAULT 0,
+                    tag_part_time INT DEFAULT 0,
+                    tag_internship INT DEFAULT 0,
+                    tag_military_exemption INT DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    batch_id TEXT,
-                    batch_date TIMESTAMP
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
@@ -222,12 +230,7 @@ class DatabaseManager:
             )
 
             # Useful indexes.
-            await conn.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_jobs_activation_time ON {self.schema}.jobs (activation_time)"
-            )
-            await conn.execute(
-                f"CREATE INDEX IF NOT EXISTS idx_jobs_batch_id ON {self.schema}.jobs (batch_id)"
-            )
+            # Useful indexes for common query patterns
             await conn.execute(
                 f"CREATE INDEX IF NOT EXISTS idx_jobs_company_id ON {self.schema}.jobs (company_id) WHERE company_id IS NOT NULL"
             )
@@ -308,21 +311,16 @@ class DatabaseManager:
                                     "title",
                                     "url",
                                     "gender",
-                                    "province_match_city",
-                                    "payment_method",
-                                    "district",
-                                    "company_fa_name",
-                                    "company_title_fa",
                                     "job_board_id",
                                     "job_board_title_en",
+                                    "job_board_title_fa",
+                                    "salary",
                                     "company_id",
-                                    "company_name_fa",
-                                    "company_name_en",
-                                    "company_about",
-                                    "company_url",
-                                    "location_ids",
-                                    "tag_number",
-                                    "batch_id",
+                                    "category",
+                                    "parent_cat",
+                                    "sub_cat",
+                                    "primary_city",
+                                    "work_type",
                                 ]:
                                     if cell_value is not None and not isinstance(
                                         cell_value, str
@@ -374,9 +372,10 @@ class DatabaseManager:
         self, job: Dict[str, Any], batch_id: str, batch_date: datetime
     ) -> Dict[str, Any]:
         """
-        Transform a raw job dictionary into a dictionary suitable for DB insertion.
-        This function explicitly casts values for TEXT columns to strings and
-        converts numeric fields appropriately.
+        Transform a raw job dictionary into a dictionary suitable for the
+        normalized jobs table defined in ``schema_blueprint.sql``. Only the
+        fields required by that table are extracted and simple one-hot tag
+        columns are derived.
 
         Args:
             job (Dict[str, Any]): The raw job data from the API.
@@ -386,132 +385,63 @@ class DatabaseManager:
         Returns:
             Dict[str, Any]: Transformed job data with proper types.
         """
-        # Convert activation time string to datetime object.
-        activation_time = None
-        if "activationTime" in job and isinstance(job["activationTime"], dict):
-            date_str = job["activationTime"].get("date")
-            if date_str:
-                for fmt in [
-                    "%Y-%m-%dT%H:%M:%S.%f",
-                    "%Y-%m-%dT%H:%M:%S",
-                    "%Y-%m-%dT%H:%M",
-                ]:
-                    try:
-                        activation_time = datetime.strptime(date_str, fmt)
-                        break
-                    except ValueError:
-                        continue
+        # Parse basic fields
+        job_board = job.get("jobBoard", {}) or {}
+        company_info = job.get("companyDetailsSummary", {}) or {}
+        tags = job.get("tags", []) if isinstance(job.get("tags"), list) else []
 
-        # Build a string for location IDs (e.g., "001,002").
-        location_ids = []
-        locs = job.get("locations", [])
-        if isinstance(locs, list):
-            for loc in locs:
-                if isinstance(loc, dict):
-                    province_obj = loc.get("province")
-                    city_obj = loc.get("city")
-                    if province_obj and "id" in province_obj:
-                        location_ids.append(province_obj["id"])
-                    if city_obj and "id" in city_obj:
-                        location_ids.append(city_obj["id"])
-        location_ids_str = (
-            ",".join(f"{lid_:03d}" for lid_ in location_ids) if location_ids else ""
-        )
+        def tag_present(text: str) -> int:
+            return 1 if text in tags else 0
 
-        # Return the transformed job record.
-        # Note: For columns defined as TEXT in the schema, we convert the value to a string.
+        primary_city = None
+        if isinstance(job.get("locations"), list) and job["locations"]:
+            city = job["locations"][0].get("city") or {}
+            primary_city = city.get("titleFa")
+
+        work_type = None
+        if isinstance(job.get("workTypes"), list) and job["workTypes"]:
+            work_type = job["workTypes"][0].get("titleFa")
+
+        category = None
+        parent_cat = None
+        sub_cat = None
+        if isinstance(job.get("jobPostCategories"), list) and job["jobPostCategories"]:
+            parent = job["jobPostCategories"][0]
+            parent_cat = parent.get("titleFa")
+            category = parent_cat
+            if len(job["jobPostCategories"]) > 1:
+                sub = job["jobPostCategories"][1]
+                sub_cat = sub.get("titleFa")
+
+        salary = job.get("salary")
+        if isinstance(salary, str):
+            salary_text = salary
+        elif isinstance(salary, dict):
+            salary_text = salary.get("text") or ""
+        else:
+            salary_text = ""
+
         return {
             "id": str(job.get("id")) if job.get("id") is not None else None,
             "title": str(job.get("title")) if job.get("title") is not None else None,
             "url": str(job.get("url")) if job.get("url") is not None else None,
-            "locations": self._safe_json_dumps(job.get("locations", [])),
-            "work_types": self._safe_json_dumps(job.get("workTypes", [])),
-            "salary": self._safe_json_dumps(job.get("salary", {})),
             "gender": str(job.get("gender")) if job.get("gender") is not None else None,
-            "tags": self._safe_json_dumps(job.get("tags", [])),
-            "item_index": job.get("itemIndex"),
-            "job_post_categories": self._safe_json_dumps(
-                job.get("jobPostCategories", [])
-            ),
-            "company_fa_name": (
-                str(job.get("companyFaName"))
-                if job.get("companyFaName") is not None
-                else None
-            ),
-            "province_match_city": (
-                str(job.get("provinceMatchCity"))
-                if job.get("provinceMatchCity") is not None
-                else None
-            ),
-            "normalize_salary_min": (
-                float(job.get("normalizeSalaryMin"))
-                if job.get("normalizeSalaryMin") is not None
-                else None
-            ),
-            "normalize_salary_max": (
-                float(job.get("normalizeSalaryMax"))
-                if job.get("normalizeSalaryMax") is not None
-                else None
-            ),
-            "payment_method": (
-                str(job.get("paymentMethod"))
-                if job.get("paymentMethod") is not None
-                else None
-            ),
-            "district": (
-                str(job.get("district")) if job.get("district") is not None else None
-            ),
-            "company_title_fa": (
-                str(job.get("companyTitleFa"))
-                if job.get("companyTitleFa") is not None
-                else None
-            ),
-            "job_board_id": (
-                str(job.get("jobBoardId"))
-                if job.get("jobBoardId") is not None
-                else None
-            ),
-            "job_board_title_en": (
-                str(job.get("jobBoardTitleEn"))
-                if job.get("jobBoardTitleEn") is not None
-                else None
-            ),
-            "activation_time": activation_time,
-            "company_id": (
-                str(job.get("companyDetailsSummary", {}).get("id"))
-                if job.get("companyDetailsSummary", {}).get("id") is not None
-                else None
-            ),
-            "company_name_fa": (
-                str(job.get("companyDetailsSummary", {}).get("name", {}).get("titleFa"))
-                if job.get("companyDetailsSummary", {}).get("name", {}).get("titleFa")
-                is not None
-                else None
-            ),
-            "company_name_en": (
-                str(job.get("companyDetailsSummary", {}).get("name", {}).get("titleEn"))
-                if job.get("companyDetailsSummary", {}).get("name", {}).get("titleEn")
-                is not None
-                else None
-            ),
-            "company_about": (
-                str(
-                    job.get("companyDetailsSummary", {}).get("about", {}).get("titleFa")
-                )
-                if job.get("companyDetailsSummary", {}).get("about", {}).get("titleFa")
-                is not None
-                else None
-            ),
-            "company_url": (
-                str(job.get("companyDetailsSummary", {}).get("url"))
-                if job.get("companyDetailsSummary", {}).get("url") is not None
-                else None
-            ),
-            "location_ids": location_ids_str,
-            "tag_number": self._extract_tag_number(job),
+            "salary": salary_text,
+            "company_id": str(company_info.get("id")) if company_info.get("id") is not None else None,
+            "job_board_id": job_board.get("id"),
             "raw_data": self._safe_json_dumps(job),
-            "batch_id": str(batch_id),
-            "batch_date": batch_date,
+            "job_board_title_en": job_board.get("titleEn"),
+            "job_board_title_fa": job_board.get("titleFa"),
+            "primary_city": primary_city,
+            "work_type": work_type,
+            "category": category,
+            "parent_cat": parent_cat,
+            "sub_cat": sub_cat,
+            "tag_no_experience": tag_present("بدون نیاز به سابقه"),
+            "tag_remote": tag_present("دورکاری"),
+            "tag_part_time": tag_present("پاره وقت"),
+            "tag_internship": tag_present("کارآموزی"),
+            "tag_military_exemption": tag_present("امریه سربازی"),
         }
 
     def _extract_tag_number(self, job: Dict[str, Any]) -> str:
