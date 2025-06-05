@@ -12,10 +12,10 @@ services:
     environment:
       - SCRAPER_ENV=production
       - TZ=Asia/Tehran
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=jobsdb
-      - POSTGRES_USER=jobuser
+      - POSTGRES_HOST=${POSTGRES_HOST:-db}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-jobsdb}
+      - POSTGRES_USER=${POSTGRES_USER:-jobuser}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
       - ENABLE_CRON=true
       - RUN_ON_START=true
@@ -25,9 +25,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Expose only the port needed for health checks (8081).
+
+    # Expose health check and Prometheus metrics ports
     ports:
       - "8081:8081"
+      - "8080:8080"
     deploy:
       resources:
         limits:
@@ -43,7 +45,7 @@ services:
         max-size: "100m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 1m
       timeout: 10s
       retries: 3
@@ -58,8 +60,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
     environment:
-      - POSTGRES_DB=jobsdb
-      - POSTGRES_USER=jobuser
+      - POSTGRES_DB=${POSTGRES_DB:-jobsdb}
+      - POSTGRES_USER=${POSTGRES_USER:-jobuser}
       - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
       - POSTGRES_INITDB_ARGS="--data-checksums"
     secrets:

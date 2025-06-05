@@ -1,13 +1,14 @@
 import asyncio
-import logging
 import json
+import logging
 import os
 from datetime import datetime
-from typing import Optional, Tuple, Any
+from typing import Any, Optional, Tuple
 
 import aiohttp
-from aiohttp import web
 import psutil
+from aiohttp import web
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_latest
 
 from .db_manager import DatabaseManager
 from .log_setup import get_logger
@@ -33,6 +34,24 @@ class HealthCheck:
         """
         self.db_manager = db_manager
         self.app = web.Application()
+
+        # Prometheus metrics setup
+        self.request_counter = Counter(
+            "health_requests_total",
+            "Total HTTP requests to health endpoints",
+            ["endpoint"],
+        )
+        self.job_count_gauge = Gauge(
+            "job_count",
+            "Total jobs stored in the database",
+        )
+        self.memory_usage_gauge = Gauge(
+            "memory_usage_mb",
+            "Process memory usage in megabytes",
+            ["type"],
+        )
+
+
         self.app.add_routes(
             [
                 web.get("/health", self.health_check),
@@ -50,11 +69,17 @@ class HealthCheck:
         Returns:
             web.Response: JSON response containing health status.
         """
+        self.request_counter.labels(endpoint="health").inc()
         try:
             if not self.db_manager.is_connected:
                 await self.db_manager.initialize()
 
             job_count = await self.db_manager.get_job_count()
+            self.job_count_gauge.set(job_count)
+            memory = self._get_memory_usage()
+            self.memory_usage_gauge.labels("rss").set(memory["rss_mb"])
+            self.memory_usage_gauge.labels("vms").set(memory["vms_mb"])
+
             data = {
                 "status": "healthy",
                 "database": "connected",
@@ -83,7 +108,10 @@ class HealthCheck:
         Returns:
             web.Response: JSON response with metrics data.
         """
+        self.request_counter.labels(endpoint="metrics").inc()
         try:
+
+          
             job_stats = await self.db_manager.get_job_stats()
             data = {
                 "metrics": {
@@ -102,6 +130,7 @@ class HealthCheck:
                 },
                 status=500,
             )
+
 
     def _get_memory_usage(self) -> dict:
         """
