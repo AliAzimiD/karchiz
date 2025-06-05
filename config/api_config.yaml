@@ -54,8 +54,8 @@ scraper:
 # ==============================================
   database:
     enabled: true
-    # Use environment variables or secrets in production to secure the connection string.
-    connection_string: "postgresql://username:password@localhost:5432/jobsdb"
+    # Connection string will be built from POSTGRES_* environment variables
+    connection_string: ""
     schema: "public"
     batch_size: 1000         # Maximum number of jobs per bulk insert.
     save_raw_data: true      # Option to also save raw data locally.

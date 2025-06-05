@@ -136,7 +136,7 @@ def load_config() -> Dict[str, Any]:
             "log_level": "INFO",
         },
         "database": {
-            "connection_string": "postgresql://postgres:postgres@localhost:5432/jobsdb",
+            "connection_string": "",
             "schema": "public",
             "pool_size": 10,
         },
@@ -163,22 +163,21 @@ def load_config() -> Dict[str, Any]:
             logging.warning(f"Error loading config file: {str(e)}")
 
     # Merge environment variables for DB / app / scraper
-    if os.getenv("POSTGRES_HOST"):
-        db_user = os.getenv("POSTGRES_USER", "postgres")
-        db_password = os.getenv("POSTGRES_PASSWORD", "")
-        db_host = os.getenv("POSTGRES_HOST", "localhost")
-        db_port = os.getenv("POSTGRES_PORT", "5432")
-        db_name = os.getenv("POSTGRES_DB", "jobsdb")
+    db_user = os.getenv("POSTGRES_USER", "postgres")
+    db_password = os.getenv("POSTGRES_PASSWORD", "")
+    db_host = os.getenv("POSTGRES_HOST", "localhost")
+    db_port = os.getenv("POSTGRES_PORT", "5432")
+    db_name = os.getenv("POSTGRES_DB", "jobsdb")
 
-        # If password is in a file, read it
-        pw_file = os.getenv("POSTGRES_PASSWORD_FILE")
-        if pw_file and os.path.exists(pw_file):
-            with open(pw_file, "r", encoding="utf-8") as pf:
-                db_password = pf.read().strip()
+    # If password is provided via file, prefer that
+    pw_file = os.getenv("POSTGRES_PASSWORD_FILE")
+    if not db_password and pw_file and os.path.exists(pw_file):
+        with open(pw_file, "r", encoding="utf-8") as pf:
+            db_password = pf.read().strip()
 
-        config["database"]["connection_string"] = (
-            f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-        )
+    config["database"]["connection_string"] = (
+        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    )
 
     # Overwrite app config if present
     if os.getenv("SCRAPER_ENV"):

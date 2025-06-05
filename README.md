@@ -46,8 +46,8 @@ Tests are in `tests/`; run with:
 pytest --asyncio-mode=auto --cov=src --cov-report=html
 Configuration
 config/api_config.yaml: Main scraping + DB parameters
-Environment variables override YAML settings:
-SCRAPER_ENV, POSTGRES_HOST, LOG_LEVEL, etc.
+Environment variables override YAML settings. Database credentials are pulled
+from `POSTGRES_*` variables or files so no passwords live in the repo.
 CI/CD
 Minimal example in .github/workflows/ci.yml sets up mypy checks, lint, bandit, tests, code coverage.
 Monitoring
