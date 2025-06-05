@@ -65,8 +65,11 @@ PostgreSQL data. Start the service with:
 docker-compose up -d superset
 ```
 
-Then visit [http://localhost:8088](http://localhost:8088) and log in using the default credentials
-`admin` / `admin`. Configure a new Postgres database connection pointing to the `db` service to
+The container automatically initializes its database and creates the default
+`admin` account on first start. Once running, visit
+[http://localhost:8088](http://localhost:8088) and log in using the default
+credentials `admin` / `admin`.
+Configure a new Postgres database connection pointing to the `db` service to
 build charts and dashboards.
 Monitoring
 health.py listens on /health and /metrics.
