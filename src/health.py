@@ -14,6 +14,7 @@ from .log_setup import get_logger
 
 logger = get_logger("health_check")
 
+
 class HealthCheck:
     """
     Provides a basic health check and metrics API using aiohttp.
@@ -32,10 +33,12 @@ class HealthCheck:
         """
         self.db_manager = db_manager
         self.app = web.Application()
-        self.app.add_routes([
-            web.get('/health', self.health_check),
-            web.get('/metrics', self.metrics),
-        ])
+        self.app.add_routes(
+            [
+                web.get("/health", self.health_check),
+                web.get("/metrics", self.metrics),
+            ]
+        )
 
     async def health_check(self, request: web.Request) -> web.Response:
         """
@@ -61,11 +64,14 @@ class HealthCheck:
             return web.json_response(data)
         except Exception as e:
             logger.error(f"Health check failed: {str(e)}")
-            return web.json_response({
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": str(datetime.now()),
-            }, status=500)
+            return web.json_response(
+                {
+                    "status": "unhealthy",
+                    "error": str(e),
+                    "timestamp": str(datetime.now()),
+                },
+                status=500,
+            )
 
     async def metrics(self, request: web.Request) -> web.Response:
         """
@@ -81,7 +87,7 @@ class HealthCheck:
             job_stats = await self.db_manager.get_job_stats()
             data = {
                 "metrics": {
-                    "jobs": job_stats,
+                    "database": job_stats,
                     "system": {"memory_usage": self._get_memory_usage()},
                 },
                 "timestamp": str(datetime.now()),
@@ -89,10 +95,13 @@ class HealthCheck:
             return web.json_response(data)
         except Exception as e:
             logger.error(f"Metrics endpoint failed: {str(e)}")
-            return web.json_response({
-                "status": "error",
-                "error": str(e),
-            }, status=500)
+            return web.json_response(
+                {
+                    "status": "error",
+                    "error": str(e),
+                },
+                status=500,
+            )
 
     def _get_memory_usage(self) -> dict:
         """
@@ -107,7 +116,9 @@ class HealthCheck:
             "vms_mb": process.memory_info().vms / (1024 * 1024),
         }
 
-    async def start(self, host: str = "0.0.0.0", port: int = 8080) -> Tuple[web.AppRunner, web.TCPSite]:
+    async def start(
+        self, host: str = "0.0.0.0", port: int = 8080
+    ) -> Tuple[web.AppRunner, web.TCPSite]:
         """
         Start the aiohttp server for health checks and metrics.
 
