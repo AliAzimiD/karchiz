@@ -1,6 +1,6 @@
 #!/bin/bash
 # entrypoint.sh
-# This script sets up the container environment, starts auxiliary services (health check and cron),
+# This script sets up the container environment, starts auxiliary services (cron),
 # and finally launches the scraper application with proper signal handling and privilege dropping.
 
 # Exit immediately if a command exits with a non-zero status.
@@ -18,10 +18,6 @@ log() {
 # Cleanup function to gracefully shut down services on SIGTERM/SIGINT.
 cleanup() {
     log "Received shutdown signal. Initiating cleanup..."
-    if [ -n "$HEALTH_PID" ]; then
-        log "Stopping health check service (PID=$HEALTH_PID)..."
-        kill -TERM "$HEALTH_PID" 2>/dev/null || true
-    fi
     if [ "$ENABLE_CRON" = "true" ]; then
         log "Stopping cron service..."
         service cron stop || true
@@ -46,28 +42,6 @@ setup_logs() {
     chmod 644 /app/job_data/logs/cron.log
 }
 
-# Start the health check service in the background.
-start_health() {
-    log "Starting health check Flask service on port 8081..."
-    # Start the health service in the background.
-    python /app/health/app.py &
-    HEALTH_PID=$!
-    log "Health check service started with PID=$HEALTH_PID"
-
-    # Wait until the health service responds.
-    for i in {1..10}; do
-        if curl -s http://localhost:8081/health > /dev/null; then
-            log "Health service is up and running!"
-            return 0
-        fi
-        if [ "$i" -eq 10 ]; then
-            log "ERROR: Health service failed to start after 10 attempts!"
-            exit 1
-        fi
-        log "Health service not ready yet... ($i/10)"
-        sleep 1
-    done
-}
 
 # Start cron service (runs as root) if enabled.
 start_cron() {
@@ -122,9 +96,6 @@ log "Starting job scraper in $SCRAPER_ENV environment..."
 
 # Setup logs directory and permissions.
 setup_logs
-
-# Start the health check service.
-start_health
 
 # Optionally start the cron service.
 start_cron
