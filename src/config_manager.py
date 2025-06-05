@@ -1,12 +1,19 @@
 import json
-import logging
-import os
 import yaml
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+from pydantic import ValidationError
 
 from .log_setup import get_logger
+from .config_models import (
+    AppConfig,
+    APIConfig,
+    RequestConfig,
+    ScraperConfig,
+    DatabaseConfig,
+)
 
 # Central logger for ConfigManager
 logger = get_logger("ConfigManager")
@@ -27,7 +34,7 @@ class ConfigManager:
             config_path (str): Path to the YAML config file.
         """
         self.config_path: str = config_path
-        # Immediately load config from YAML + any environment overrides
+        # Immediately load and validate configuration
         self._load_config()
 
         # Setup the directory for storing persistent 'state' JSON
@@ -42,23 +49,23 @@ class ConfigManager:
         """
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
-                config = yaml.safe_load(f)
+                raw_config = yaml.safe_load(f) or {}
 
-            # Sections from YAML
-            self.api_config: Dict[str, Any] = config.get("api", {})
-            self.request_config: Dict[str, Any] = config.get("request", {})
-            self.scraper_config: Dict[str, Any] = config.get("scraper", {})
-            self.database_config: Dict[str, Any] = config.get("database", {})
+            try:
+                parsed = AppConfig.model_validate(raw_config)
+            except ValidationError as e:
+                logger.error("Configuration validation failed")
+                logger.error(str(e))
+                raise
 
-            # Warn if critical sections are missing
-            if not self.api_config:
-                logger.warning("API configuration section is missing or empty")
-            if not self.request_config:
-                logger.warning("Request configuration is missing or empty")
-            if not self.scraper_config:
-                logger.warning("Scraper configuration is missing or empty")
+            # Store parsed sections
+            self.config: AppConfig = parsed
+            self.api_config: APIConfig = parsed.api
+            self.request_config: RequestConfig = parsed.request
+            self.scraper_config: ScraperConfig = parsed.scraper
+            self.database_config: DatabaseConfig = parsed.scraper.database
 
-            logger.info("Configuration loaded successfully from YAML")
+            logger.info("Configuration loaded and validated successfully")
         except FileNotFoundError:
             logger.error(f"Configuration file not found: {self.config_path}")
             raise
@@ -110,7 +117,7 @@ class ConfigManager:
                 json.dump(current_state, f, indent=2, ensure_ascii=False)
 
             # Optionally create a backup if configured in 'state_tracking'
-            backup_count = self.scraper_config.get("state_tracking", {}).get("backup_count", 3)
+            backup_count = self.scraper_config.state_tracking.backup_count
             if backup_count > 0:
                 self._create_state_backup(backup_count)
 
@@ -150,7 +157,7 @@ class ConfigManager:
         Returns:
             bool: True if local file saving is desired alongside DB usage.
         """
-        return self.database_config.get("save_raw_data", True)
+        return self.database_config.save_raw_data
 
     def get_db_connection_string(self) -> Optional[str]:
         """
@@ -159,8 +166,8 @@ class ConfigManager:
         Returns:
             Optional[str]: Connection URI or None if the database is not enabled.
         """
-        if self.database_config.get("enabled", False):
-            return self.database_config.get("connection_string")
+        if self.database_config.enabled:
+            return self.database_config.connection_string
         return None
 
     def get_max_concurrent_requests(self) -> int:
@@ -170,7 +177,7 @@ class ConfigManager:
         Returns:
             int: The concurrency limit (default 3 if missing).
         """
-        return self.scraper_config.get('max_concurrent_requests', 3)
+        return self.scraper_config.max_concurrent_requests
 
     def get_rate_limits(self) -> Dict[str, int]:
         """
@@ -179,10 +186,10 @@ class ConfigManager:
         Returns:
             dict: Rate limit parameters.
         """
-        rate_limit = self.scraper_config.get('rate_limit', {})
+        rl = self.scraper_config.rate_limit
         return {
-            'requests_per_minute': rate_limit.get('requests_per_minute', 60),
-            'burst': rate_limit.get('burst', 5)
+            'requests_per_minute': rl.requests_per_minute,
+            'burst': rl.burst,
         }
 
     def get_retry_config(self) -> Dict[str, Any]:
@@ -192,10 +199,11 @@ class ConfigManager:
         Returns:
             dict: Contains max_retries, min_delay, max_delay used for tenacity or similar.
         """
+        rd = self.scraper_config.retry_delay
         return {
-            'max_retries': self.scraper_config.get('max_retries', 5),
-            'min_delay': self.scraper_config.get('retry_delay', {}).get('min', 2),
-            'max_delay': self.scraper_config.get('retry_delay', {}).get('max', 10)
+            'max_retries': self.scraper_config.max_retries,
+            'min_delay': rd.min,
+            'max_delay': rd.max,
         }
 
     def get_monitoring_config(self) -> Dict[str, Any]:
@@ -205,7 +213,7 @@ class ConfigManager:
         Returns:
             dict: A dictionary of monitoring settings (metrics, thresholds, etc.).
         """
-        return self.scraper_config.get('monitoring', {})
+        return self.scraper_config.monitoring.model_dump()
 
     def update_config(self, section: str, key: str, value: Any) -> None:
         """
