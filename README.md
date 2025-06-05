@@ -89,25 +89,27 @@ CI/CD
 Minimal example in .github/workflows/ci.yml sets up mypy checks, lint, bandit, tests, code coverage.
 
 ## Data Visualization with Superset
-This project integrates [Apache Superset](https://superset.apache.org/) for exploring the scraped
-PostgreSQL data. Start the service with:
+This project integrates [Apache Superset](https://superset.apache.org/) for exploring
+the scraped PostgreSQL data. Start the service with:
 
 ```bash
 docker-compose up -d superset
 ```
 
-The `superset` service executes `superset-init.sh` which upgrades the Superset
-database, creates the default `admin` account and runs the helper script
-`scripts/create_superset_connection.py` to automatically register the
-`jobsdb` database connection. The script reads the database password from the
-file specified by `APP_DB_PASSWORD_FILE` (set in `docker-compose.yml` to
-`/run/secrets/db_password` which maps to `secrets/db_password.txt`) and exports
-it as `APP_DB_PASSWORD` for Superset.
+The `superset` service automatically initializes on first start:
+
+1. Runs `superset-init.sh` to upgrade the Superset database and create the
+   default `admin` account.
+2. Executes `scripts/create_superset_connection.py` to register the `jobsdb`
+   connection.
+3. The helper script reads the password from the file specified by
+   `APP_DB_PASSWORD_FILE` (in `docker-compose.yml` this is set to
+   `/run/secrets/db_password`, mapping to `secrets/db_password.txt`).
 
 Once running, visit [http://localhost:8088](http://localhost:8088) and log in
-using the default credentials `admin`/`admin`. Superset is pre-configured to
-connect to the `jobsdb` database so you can start building charts immediately.
-The container installs the PostgreSQL driver at startup using
+with `admin`/`admin`. Superset is pre-configured to connect to the `jobsdb`
+database so you can start building charts immediately. The container installs
+the PostgreSQL driver at startup using the environment variable
 
 `PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary`.
 
