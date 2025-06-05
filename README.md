@@ -48,6 +48,7 @@ Run tests from the repository root with:
 
 ```bash
 pytest --asyncio-mode=auto --cov=src --cov-report=html
+```
 
 Configuration
 config/api_config.yaml: Main scraping + DB parameters
@@ -55,6 +56,18 @@ Environment variables override YAML settings. Database credentials are pulled
 from `POSTGRES_*` variables or files so no passwords live in the repo.
 CI/CD
 Minimal example in .github/workflows/ci.yml sets up mypy checks, lint, bandit, tests, code coverage.
+
+## Data Visualization with Superset
+This project integrates [Apache Superset](https://superset.apache.org/) for exploring the scraped
+PostgreSQL data. Start the service with:
+
+```bash
+docker-compose up -d superset
+```
+
+Then visit [http://localhost:8088](http://localhost:8088) and log in using the default credentials
+`admin` / `admin`. Configure a new Postgres database connection pointing to the `db` service to
+build charts and dashboards.
 Monitoring
 health.py listens on /health and /metrics.
 Integration with Prometheus or other monitoring solutions is possible by adding Prometheus exporters.
