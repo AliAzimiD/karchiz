@@ -65,6 +65,7 @@ PostgreSQL data. Start the service with:
 docker-compose up -d superset
 ```
 
+
 The container automatically initializes its database, creates the default
 `admin` account, and registers the included PostgreSQL instance. Once running,
 visit [http://localhost:8088](http://localhost:8088) and log in using the
