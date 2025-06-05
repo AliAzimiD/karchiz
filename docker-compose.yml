@@ -121,8 +121,10 @@ services:
         condition: service_healthy
     volumes:
       - superset_home:/app/superset_home
+      - ./superset-init.sh:/app/superset-init.sh
     ports:
       - "8088:8088"
+    command: ["/bin/bash", "/app/superset-init.sh"]
     networks:
       - scraper-network
 
