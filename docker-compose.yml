@@ -25,9 +25,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Expose only the port needed for health checks (8081).
+    # Expose health check and Prometheus metrics ports
     ports:
       - "8081:8081"
+      - "8080:8080"
     deploy:
       resources:
         limits:

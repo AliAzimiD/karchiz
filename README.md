@@ -50,9 +50,15 @@ Environment variables override YAML settings:
 SCRAPER_ENV, POSTGRES_HOST, LOG_LEVEL, etc.
 CI/CD
 Minimal example in .github/workflows/ci.yml sets up mypy checks, lint, bandit, tests, code coverage.
-Monitoring
-health.py listens on /health and /metrics.
-Integration with Prometheus or other monitoring solutions is possible by adding Prometheus exporters.
+
+## Monitoring
+`health.py` exposes `/health` and `/metrics`. The `/metrics` endpoint now serves
+Prometheus formatted metrics using `prometheus_client`. When running with the
+provided Docker Compose file, port `8080` is mapped so a Prometheus server can
+scrape metrics from `http://localhost:8080/metrics`.
+
+Integration with Prometheus or other monitoring solutions is straightforward—
+add a scrape job pointing at the above URL.
 Security & Secrets
 Uses Docker secrets (db_password_file) for DB.
 For advanced production, adopt AWS Secrets Manager, Vault, or other secure secret retrieval.
