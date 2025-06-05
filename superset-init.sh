@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+# Initialize the database
+superset db upgrade
+
+# Create an admin user if it doesn't exist
+superset fab create-admin \
+    --username admin \
+    --firstname admin \
+    --lastname admin \
+    --email admin@example.com \
+    --password ${ADMIN_PASSWORD:-admin} || true
+
+# Set up roles and permissions
+superset init
+
+# Configure default database connection in Superset
+if [ -f "${APP_DB_PASSWORD_FILE:-/run/secrets/db_password}" ]; then
+  export APP_DB_PASSWORD="$(cat ${APP_DB_PASSWORD_FILE:-/run/secrets/db_password})"
+fi
+python /app/scripts/create_superset_connection.py || true
+
+# Start the Superset server
+/usr/bin/run-server.sh
