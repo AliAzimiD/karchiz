@@ -19,6 +19,7 @@ superset init
 if [ -f "${APP_DB_PASSWORD_FILE:-/run/secrets/db_password}" ]; then
   export APP_DB_PASSWORD="$(cat ${APP_DB_PASSWORD_FILE:-/run/secrets/db_password})"
 fi
+echo "Setting up Superset database connection..."
 python /app/scripts/create_superset_connection.py || true
 
 # Start the Superset server

@@ -121,6 +121,8 @@ services:
       - APP_DB_NAME=${POSTGRES_DB:-jobsdb}
       - APP_DB_USER=${POSTGRES_USER:-jobuser}
       - APP_DB_PASSWORD_FILE=/run/secrets/db_password
+      # Optional full SQLAlchemy URI. Overrides the individual settings above if provided
+      - APP_DB_URI=${APP_DB_URI:-}
       - PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary
 
     depends_on:
