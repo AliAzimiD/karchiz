@@ -64,7 +64,7 @@ RUN echo "/app/job_data/logs/*.log {\n\
     && chmod 0644 /etc/logrotate.d/scraper
 
 # Set up cron jobs for scheduled scraping every 6 hours + daily logrotate
-RUN echo "0 */6 * * * cd /app && /usr/local/bin/python /app/main.py >> /app/job_data/logs/cron.log 2>&1" \
+RUN echo "0 */6 * * * cd /app && ENABLE_HEALTH_CHECK=false /usr/local/bin/python /app/main.py >> /app/job_data/logs/cron.log 2>&1" \
     > /etc/cron.d/scraper-cron \
     && echo "0 0 * * * /usr/sbin/logrotate /etc/logrotate.d/scraper --state /app/job_data/logs/logrotate.status" \
     >> /etc/cron.d/scraper-cron \
