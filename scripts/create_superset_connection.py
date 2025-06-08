@@ -4,7 +4,21 @@ from sqlalchemy.exc import SQLAlchemyError
 from superset.app import create_app
 from superset.extensions import db
 
-from src.log_setup import get_logger
+import logging
+
+
+def get_logger(name: str = "superset_setup") -> logging.Logger:
+    """Return a basic logger configured for console output."""
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
 
 
 logger = get_logger("superset_setup")
