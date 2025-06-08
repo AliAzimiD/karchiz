@@ -394,6 +394,7 @@ class JobScraper:
                 await self._save_batch_with_state(
                     current_batch_jobs, batch_num, page - 1
                 )
+
             self.pages_processed = page - 1
             await self._log_final_statistics(pages_processed=self.pages_processed)
 
