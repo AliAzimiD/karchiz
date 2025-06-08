@@ -1,5 +1,3 @@
-import asyncio
-import logging
 import json
 import time
 import traceback
@@ -7,7 +5,6 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Union
 
 import asyncpg
-import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from pathlib import Path
@@ -151,11 +148,12 @@ class DatabaseManager:
             await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
 
             # Create normalized schema from blueprint
-            sql_file = Path(__file__).resolve().parents[1] / "scripts" / "schema_blueprint.sql"
+            sql_file = (
+                Path(__file__).resolve().parents[1] / "scripts" / "schema_blueprint.sql"
+            )
             if sql_file.exists():
                 await self._execute_sql_file(conn, sql_file)
 
-            
             # Main jobs table.
             await conn.execute(
                 f"""
@@ -301,6 +299,20 @@ class DatabaseManager:
                 values = [
                     self._transform_job_for_db(j, batch_id, batch_date) for j in chunk
                 ]
+
+                # Extract and upsert job board metadata before inserting jobs.
+                boards = {}
+                for j in chunk:
+                    jb = j.get("jobBoard") or {}
+                    bid = jb.get("id")
+                    if bid is not None and str(bid).isdigit():
+                        boards[int(bid)] = {
+                            "title_en": jb.get("titleEn"),
+                            "title_fa": jb.get("titleFa"),
+                            "organization_color": jb.get("organizationColor"),
+                        }
+                if boards:
+                    await self._upsert_job_boards(boards)
 
                 async with self.pool.acquire() as conn:
                     columns = list(values[0].keys())
@@ -448,7 +460,12 @@ class DatabaseManager:
                 )
                 else None
             ),
-            "job_board_id": int(job_board.get("id")) if isinstance(job_board.get("id"), (int, str)) and str(job_board.get("id")).isdigit() else None,
+            "job_board_id": (
+                int(job_board.get("id"))
+                if isinstance(job_board.get("id"), (int, str))
+                and str(job_board.get("id")).isdigit()
+                else None
+            ),
             "raw_data": self._safe_json_dumps(job),
             "job_board_title_en": job_board.get("titleEn"),
             "job_board_title_fa": job_board.get("titleFa"),
@@ -512,6 +529,25 @@ class DatabaseManager:
                 return "[]"
             else:
                 return '""'
+
+    async def _upsert_job_boards(self, boards: Dict[int, Dict[str, Any]]) -> None:
+        """Insert or update job board metadata."""
+        async with self.pool.acquire() as conn:
+            for board_id, info in boards.items():
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self.schema}.job_boards (id, title_en, title_fa, organization_color)
+                    VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (id) DO UPDATE
+                      SET title_en = EXCLUDED.title_en,
+                          title_fa = EXCLUDED.title_fa,
+                          organization_color = EXCLUDED.organization_color
+                    """,
+                    board_id,
+                    info.get("title_en"),
+                    info.get("title_fa"),
+                    info.get("organization_color"),
+                )
 
     async def _start_batch(
         self, batch_id: str, batch_date: datetime, job_count: int
