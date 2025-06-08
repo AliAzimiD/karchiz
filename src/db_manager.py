@@ -302,6 +302,7 @@ class DatabaseManager:
 
                 # Extract and upsert job board metadata before inserting jobs.
                 boards = {}
+                companies = {}
                 for j in chunk:
                     jb = j.get("jobBoard") or {}
                     bid = jb.get("id")
@@ -311,8 +312,19 @@ class DatabaseManager:
                             "title_fa": jb.get("titleFa"),
                             "organization_color": jb.get("organizationColor"),
                         }
+                    comp = j.get("companyDetailsSummary") or {}
+                    cid = comp.get("id")
+                    if cid is not None and str(cid).isdigit() and int(cid) > 0:
+                        companies[int(cid)] = {
+                            "title_en": (comp.get("name") or {}).get("titleEn"),
+                            "title_fa": (comp.get("name") or {}).get("titleFa"),
+                            "about": (comp.get("about") or {}).get("titleFa"),
+                            "company_logo": comp.get("logo"),
+                        }
                 if boards:
                     await self._upsert_job_boards(boards)
+                if companies:
+                    await self._upsert_companies(companies)
 
                 async with self.pool.acquire() as conn:
                     columns = list(values[0].keys())
@@ -547,6 +559,27 @@ class DatabaseManager:
                     info.get("title_en"),
                     info.get("title_fa"),
                     info.get("organization_color"),
+                )
+
+    async def _upsert_companies(self, companies: Dict[int, Dict[str, Any]]) -> None:
+        """Insert or update company metadata referenced by jobs."""
+        async with self.pool.acquire() as conn:
+            for company_id, info in companies.items():
+                await conn.execute(
+                    f"""
+                    INSERT INTO {self.schema}.companies (id, title_en, title_fa, about, company_logo)
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT (id) DO UPDATE
+                      SET title_en = EXCLUDED.title_en,
+                          title_fa = EXCLUDED.title_fa,
+                          about = EXCLUDED.about,
+                          company_logo = EXCLUDED.company_logo
+                    """,
+                    company_id,
+                    info.get("title_en"),
+                    info.get("title_fa"),
+                    info.get("about"),
+                    info.get("company_logo"),
                 )
 
     async def _start_batch(
