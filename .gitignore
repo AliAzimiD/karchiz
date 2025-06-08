@@ -24,9 +24,7 @@ var/
 venv/
 ENV/
 
-# Data and logs
-job_data/
-*.log
+
 
 # IDE specific files
 .idea/

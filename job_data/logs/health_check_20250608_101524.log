@@ -1,0 +1,3 @@
+2025-06-08 10:15:24,442 [INFO] health_check - Logger health_check initialized at level INFO. Log file: job_data/logs/health_check_20250608_101524.log
+2025-06-08 10:15:24,499 [INFO] health_check - Logger health_check initialized at level INFO. Log file: job_data/logs/health_check_20250608_101524.log
+2025-06-08 10:15:25,854 [INFO] health_check - Health check server started on http://0.0.0.0:8080
