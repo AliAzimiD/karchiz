@@ -186,11 +186,15 @@ class DatabaseManager:
                 """
             )
 
-            # Temporary table for staging bulk upserts.
+            # Temporary table for staging bulk upserts. This table mirrors the
+            # columns of ``jobs`` but intentionally omits constraints and
+            # indexes so that we can stage duplicate or partially invalid
+            # records without triggering constraint errors during the COPY
+            # operation.
             await conn.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {self.schema}.jobs_temp (
-                    LIKE {self.schema}.jobs INCLUDING ALL
+                    LIKE {self.schema}.jobs INCLUDING DEFAULTS
                 )
                 """
             )
@@ -272,6 +276,15 @@ class DatabaseManager:
         """
         if not jobs:
             return 0
+
+        # Deduplicate by job ID to avoid primary key conflicts in the staging
+        # table when a payload accidentally contains duplicate entries.
+        deduped: Dict[str, Dict[str, Any]] = {}
+        for j in jobs:
+            jid = str(j.get("id")) if j.get("id") is not None else None
+            if jid is not None:
+                deduped[jid] = j
+        jobs = list(deduped.values())
 
         batch_date = datetime.now()
         inserted_count = 0
@@ -426,10 +439,15 @@ class DatabaseManager:
             "url": str(job.get("url")) if job.get("url") is not None else None,
             "gender": str(job.get("gender")) if job.get("gender") is not None else None,
             "salary": salary_text,
-            "company_id": int(company_info.get("id"))
-            if isinstance(company_info.get("id"), (int, str))
-            and str(company_info.get("id")).isdigit()
-            else None,
+            "company_id": (
+                int(company_info.get("id"))
+                if (
+                    isinstance(company_info.get("id"), (int, str))
+                    and str(company_info.get("id")).isdigit()
+                    and int(company_info.get("id")) > 0
+                )
+                else None
+            ),
             "job_board_id": int(job_board.get("id")) if isinstance(job_board.get("id"), (int, str)) and str(job_board.get("id")).isdigit() else None,
             "raw_data": self._safe_json_dumps(job),
             "job_board_title_en": job_board.get("titleEn"),
