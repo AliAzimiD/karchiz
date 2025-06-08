@@ -78,6 +78,7 @@ class JobScraper:
         self.current_batch: int = 0
         self.total_jobs_scraped: int = 0
         self.failed_requests: List[int] = []
+        self.pages_processed: int = 0
 
         # Concurrency limit for HTTP requests
         max_concurrent = self.scraper_config.max_concurrent_requests
@@ -390,8 +391,8 @@ class JobScraper:
                 processed_count = await self._process_jobs(current_batch_jobs)
                 self.total_jobs_scraped += processed_count
                 await self._save_batch_with_state(current_batch_jobs, batch_num, page)
-
-            await self._log_final_statistics(pages_processed=page - 1)
+            self.pages_processed = page - 1
+            await self._log_final_statistics(pages_processed=self.pages_processed)
 
     async def _save_batch_with_state(
         self, jobs: List[Dict[str, Any]], batch_num: int, current_page: int
@@ -487,7 +488,7 @@ class JobScraper:
             self.logger.info("Job scraper completed successfully.")
             return {
                 "total_jobs": self.total_jobs_scraped,
-                "pages_processed": self.current_batch,
+                "pages_processed": self.pages_processed,
                 "status": "completed",
             }
         except Exception as e:
