@@ -66,7 +66,7 @@ class JobScraper:
             db_config = self.config_manager.database_config
             self.db_manager = DatabaseManager(
                 connection_string=db_config.connection_string,
-                schema=db_config.schema,
+                schema=db_config.db_schema,
                 batch_size=db_config.batch_size,
             )
 

@@ -137,7 +137,7 @@ def load_config() -> Dict[str, Any]:
         },
         "database": {
             "connection_string": "",
-            "schema": "public",
+            "db_schema": "public",
             "pool_size": 10,
         },
         "scraper": {
@@ -168,6 +168,7 @@ def load_config() -> Dict[str, Any]:
     db_host = os.getenv("POSTGRES_HOST", "localhost")
     db_port = os.getenv("POSTGRES_PORT", "5432")
     db_name = os.getenv("POSTGRES_DB", "jobsdb")
+    db_schema_env = os.getenv("POSTGRES_SCHEMA")
 
     # If password is provided via file, prefer that
     pw_file = os.getenv("POSTGRES_PASSWORD_FILE")
@@ -178,6 +179,8 @@ def load_config() -> Dict[str, Any]:
     config["database"]["connection_string"] = (
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     )
+    if db_schema_env:
+        config["database"]["db_schema"] = db_schema_env
 
     # Overwrite app config if present
     if os.getenv("SCRAPER_ENV"):
