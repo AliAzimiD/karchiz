@@ -3,7 +3,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from superset.app import create_app
 from superset.extensions import db
-from superset.models.core import Database
 
 
 def verify_database(uri: str) -> bool:
@@ -17,9 +16,12 @@ def verify_database(uri: str) -> bool:
         print(f"Unable to connect to database: {exc}")
         return False
 
+
 app = create_app()
 
 with app.app_context():
+    from superset.models.core import Database
+
     uri = os.environ.get("APP_DB_URI")
     if not uri:
         host = os.environ.get("APP_DB_HOST", "db")
