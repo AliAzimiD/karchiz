@@ -259,6 +259,98 @@ class DatabaseManager:
                 """
             )
 
+    def _deduplicate_jobs(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Return a list of jobs with unique IDs."""
+        deduped: Dict[str, Dict[str, Any]] = {}
+        for j in jobs:
+            jid = str(j.get("id")) if j.get("id") is not None else None
+            if jid is not None:
+                deduped[jid] = j
+        return list(deduped.values())
+
+    def _extract_metadata(
+        self, jobs: List[Dict[str, Any]]
+    ) -> tuple[Dict[int, Dict[str, Any]], Dict[int, Dict[str, Any]]]:
+        """Extract job board and company metadata from a list of jobs."""
+        boards: Dict[int, Dict[str, Any]] = {}
+        companies: Dict[int, Dict[str, Any]] = {}
+        for j in jobs:
+            jb = j.get("jobBoard") or {}
+            bid = jb.get("id")
+            if bid is not None and str(bid).isdigit():
+                boards[int(bid)] = {
+                    "title_en": jb.get("titleEn"),
+                    "title_fa": jb.get("titleFa"),
+                    "organization_color": jb.get("organizationColor"),
+                }
+            comp = j.get("companyDetailsSummary") or {}
+            cid = comp.get("id")
+            if cid is not None and str(cid).isdigit() and int(cid) > 0:
+                companies[int(cid)] = {
+                    "title_en": (comp.get("name") or {}).get("titleEn"),
+                    "title_fa": (comp.get("name") or {}).get("titleFa"),
+                    "about": (comp.get("about") or {}).get("titleFa"),
+                    "company_logo": comp.get("logo"),
+                }
+        return boards, companies
+
+    async def _stage_jobs(
+        self, conn: asyncpg.Connection, values: List[Dict[str, Any]]
+    ) -> List[str]:
+        """Stage normalized job dicts into the temporary table."""
+        columns = list(values[0].keys())
+        await conn.execute(f"TRUNCATE TABLE {self.schema}.jobs_temp")
+        records = [[row_dict[c] for c in columns] for row_dict in values]
+
+        for row_index, record in enumerate(records):
+            for col_index, cell_value in enumerate(record):
+                if columns[col_index] in [
+                    "id",
+                    "title",
+                    "url",
+                    "gender",
+                    "job_board_title_en",
+                    "job_board_title_fa",
+                    "salary",
+                    "company_id",
+                    "category",
+                    "parent_cat",
+                    "sub_cat",
+                    "primary_city",
+                    "work_type",
+                ]:
+                    if cell_value is not None and not isinstance(cell_value, str):
+                        logger.error(
+                            f"DEBUG: Potential mismatch at record {row_index}, "
+                            f"column '{columns[col_index]}' - found {type(cell_value).__name__} value: {cell_value}"
+                        )
+
+        await conn.copy_records_to_table(
+            table_name="jobs_temp",
+            records=records,
+            columns=columns,
+            schema_name=self.schema,
+        )
+        return columns
+
+    async def _perform_upsert(
+        self, conn: asyncpg.Connection, columns: List[str]
+    ) -> int:
+        """Upsert staged jobs from the temporary table into the main table."""
+        col_updates = ", ".join(
+            f"{col} = EXCLUDED.{col}" for col in columns if col != "id"
+        )
+        upsert_query = f"""
+            INSERT INTO {self.schema}.jobs ({', '.join(columns)})
+            SELECT {', '.join(columns)}
+            FROM {self.schema}.jobs_temp
+            ON CONFLICT (id) DO UPDATE
+            SET {col_updates}, updated_at = CURRENT_TIMESTAMP
+        """
+        result = await conn.execute(upsert_query)
+        logger.info(f"Upsert result for chunk: {result}")
+        return int(result.split()[-1])
+
     async def insert_jobs(self, jobs: List[Dict[str, Any]], batch_id: str) -> int:
         """
         Insert or upsert a list of jobs. This method uses a temporary table
@@ -275,14 +367,7 @@ class DatabaseManager:
         if not jobs:
             return 0
 
-        # Deduplicate by job ID to avoid primary key conflicts in the staging
-        # table when a payload accidentally contains duplicate entries.
-        deduped: Dict[str, Dict[str, Any]] = {}
-        for j in jobs:
-            jid = str(j.get("id")) if j.get("id") is not None else None
-            if jid is not None:
-                deduped[jid] = j
-        jobs = list(deduped.values())
+        jobs = self._deduplicate_jobs(jobs)
 
         batch_date = datetime.now()
         inserted_count = 0
@@ -295,99 +380,20 @@ class DatabaseManager:
             # Process jobs in chunks.
             for i in range(0, len(jobs), self.batch_size):
                 chunk = jobs[i : i + self.batch_size]
-                # Transform each job into a dictionary with proper type casting.
                 values = [
                     self._transform_job_for_db(j, batch_id, batch_date) for j in chunk
                 ]
 
-                # Extract and upsert job board metadata before inserting jobs.
-                boards = {}
-                companies = {}
-                for j in chunk:
-                    jb = j.get("jobBoard") or {}
-                    bid = jb.get("id")
-                    if bid is not None and str(bid).isdigit():
-                        boards[int(bid)] = {
-                            "title_en": jb.get("titleEn"),
-                            "title_fa": jb.get("titleFa"),
-                            "organization_color": jb.get("organizationColor"),
-                        }
-                    comp = j.get("companyDetailsSummary") or {}
-                    cid = comp.get("id")
-                    if cid is not None and str(cid).isdigit() and int(cid) > 0:
-                        companies[int(cid)] = {
-                            "title_en": (comp.get("name") or {}).get("titleEn"),
-                            "title_fa": (comp.get("name") or {}).get("titleFa"),
-                            "about": (comp.get("about") or {}).get("titleFa"),
-                            "company_logo": comp.get("logo"),
-                        }
+                boards, companies = self._extract_metadata(chunk)
                 if boards:
                     await self._upsert_job_boards(boards)
                 if companies:
                     await self._upsert_companies(companies)
 
                 async with self.pool.acquire() as conn:
-                    columns = list(values[0].keys())
-
                     async with conn.transaction():
-                        # Truncate the temporary table before inserting the chunk.
-                        await conn.execute(f"TRUNCATE TABLE {self.schema}.jobs_temp")
-
-                        # Convert each job dictionary to a list of values.
-                        records = [
-                            [row_dict[col] for col in columns] for row_dict in values
-                        ]
-
-                        # --- DEBUG STEP ---
-                        # Iterate over each record and each column.
-                        # For columns defined as TEXT, log an error if a non-string type is found.
-                        for row_index, record in enumerate(records):
-                            for col_index, cell_value in enumerate(record):
-                                if columns[col_index] in [
-                                    "id",
-                                    "title",
-                                    "url",
-                                    "gender",
-                                    "job_board_title_en",
-                                    "job_board_title_fa",
-                                    "salary",
-                                    "company_id",
-                                    "category",
-                                    "parent_cat",
-                                    "sub_cat",
-                                    "primary_city",
-                                    "work_type",
-                                ]:
-                                    if cell_value is not None and not isinstance(
-                                        cell_value, str
-                                    ):
-                                        logger.error(
-                                            f"DEBUG: Potential mismatch at record {row_index}, "
-                                            f"column '{columns[col_index]}' - found {type(cell_value).__name__} value: {cell_value}"
-                                        )
-
-                        # Bulk copy the records into the temporary table.
-                        await conn.copy_records_to_table(
-                            table_name="jobs_temp",
-                            records=records,
-                            columns=columns,
-                            schema_name=self.schema,
-                        )
-
-                        # Build the upsert query.
-                        col_updates = ", ".join(
-                            f"{col} = EXCLUDED.{col}" for col in columns if col != "id"
-                        )
-                        upsert_query = f"""
-                            INSERT INTO {self.schema}.jobs ({', '.join(columns)})
-                            SELECT {', '.join(columns)}
-                            FROM {self.schema}.jobs_temp
-                            ON CONFLICT (id) DO UPDATE
-                            SET {col_updates}, updated_at = CURRENT_TIMESTAMP
-                        """
-                        result = await conn.execute(upsert_query)
-                        logger.info(f"Upsert result for chunk: {result}")
-                        affected = int(result.split()[-1])
+                        columns = await self._stage_jobs(conn, values)
+                        affected = await self._perform_upsert(conn, columns)
                         inserted_count += affected
 
             processing_time = time.time() - start_time
