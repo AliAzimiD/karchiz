@@ -34,14 +34,15 @@ with app.app_context():
         name = os.environ.get("APP_DB_NAME", "jobsdb")
 
     if verify_database(uri):
-        db_obj = Database.query.filter_by(database_name=name).first()
+        session = db.session
+        db_obj = session.query(Database).filter_by(database_name=name).first()
         if db_obj:
             db_obj.sqlalchemy_uri = uri
             print(f"Database '{name}' updated in Superset")
         else:
             db_obj = Database(database_name=name, sqlalchemy_uri=uri)
-            db.session.add(db_obj)
+            session.add(db_obj)
             print(f"Database '{name}' created in Superset")
-        db.session.commit()
+        session.commit()
     else:
         print("Skipping Superset DB setup due to connection error")
