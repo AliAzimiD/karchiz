@@ -63,9 +63,9 @@ class DatabaseManager:
         try:
             content = sql_path.read_text()
             content = content.replace("%SCHEMA%", self.schema)
-            statements = [s.strip() for s in content.split(";") if s.strip()]
-            for stmt in statements:
-                await conn.execute(stmt)
+            # asyncpg.execute can run multiple commands separated by semicolons,
+            # so execute the entire script at once to avoid splitting issues
+            await conn.execute(content)
         except Exception as exc:
             logger.error(f"Failed executing SQL from {sql_path}: {exc}")
 
@@ -426,7 +426,10 @@ class DatabaseManager:
             "url": str(job.get("url")) if job.get("url") is not None else None,
             "gender": str(job.get("gender")) if job.get("gender") is not None else None,
             "salary": salary_text,
-            "company_id": str(company_info.get("id")) if company_info.get("id") is not None else None,
+            "company_id": int(company_info.get("id"))
+            if isinstance(company_info.get("id"), (int, str))
+            and str(company_info.get("id")).isdigit()
+            else None,
             "job_board_id": int(job_board.get("id")) if isinstance(job_board.get("id"), (int, str)) and str(job_board.get("id")).isdigit() else None,
             "raw_data": self._safe_json_dumps(job),
             "job_board_title_en": job_board.get("titleEn"),
