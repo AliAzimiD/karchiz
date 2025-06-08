@@ -31,7 +31,7 @@ class DatabaseConfig(ConfigBase):
 
     enabled: bool = False
     connection_string: Optional[str] = None
-    schema: str = "public"
+    db_schema: str = Field("public", alias="schema")
     batch_size: int = 1000
     save_raw_data: bool = True
     max_connections: int = 10

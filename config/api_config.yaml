@@ -56,7 +56,7 @@ scraper:
     enabled: true
     # Connection string will be built from POSTGRES_* environment variables
     connection_string: ""
-    schema: "public"
+    db_schema: "public"
     batch_size: 1000         # Maximum number of jobs per bulk insert.
     save_raw_data: true      # Option to also save raw data locally.
     max_connections: 10
