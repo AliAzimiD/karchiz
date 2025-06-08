@@ -36,8 +36,38 @@ job_scraper/
    - Exposes `aiohttp`-based endpoints for health and metrics checks.
 6. **`log_setup.py`** (newly added)  
    - Centralized logging logic to be imported by other modules.
-7. **`scheduler.py`**: `JobScraperScheduler`  
+7. **`scheduler.py`**: `JobScraperScheduler`
    - Repeated scheduled runs of the scraper in a loop.
+
+## Scraper Data Flow
+
+The following diagram outlines how a single run of the scraper processes data:
+
+```
+JobScraper.run()
+    |
+    v
+  initialize()
+    |
+    v
+  scrape()
+    |
+    v
+  fetch_jobs()  ->  process_jobs()  ->  _process_jobs()
+                                    /                \
+                           insert_jobs()          save_batch()
+                                    \                /
+                                    _save_batch_with_state()
+                                              |
+                                              v
+                                 _log_final_statistics()
+```
+
+`fetch_jobs()` retrieves raw pages from the API. `process_jobs()` validates and
+filters records. `_process_jobs()` writes the cleaned jobs to the database via
+`insert_jobs()` (or `save_batch()` when storing locally). After each batch,
+`_save_batch_with_state()` persists progress and finally
+`_log_final_statistics()` records summary metrics.
 
 ## Setup & Installation
 
