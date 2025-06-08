@@ -1,0 +1,242 @@
+2025-06-08 10:31:34,545 [INFO] JobScraper - Logger JobScraper initialized at level INFO. Log file: job_data/logs/JobScraper_20250608_103134.log
+2025-06-08 10:31:34,580 [INFO] JobScraper - JobScraper initialized successfully. Database Enabled? True
+2025-06-08 10:31:34,586 [INFO] JobScraper - Initializing database connection (JobScraper)...
+2025-06-08 10:31:35,146 [INFO] JobScraper - Starting job scraper run().
+2025-06-08 10:31:35,146 [INFO] JobScraper - Initializing database connection (JobScraper)...
+2025-06-08 10:31:36,669 [INFO] JobScraper - Successfully fetched page 1 on attempt 1 in 0.95 s
+2025-06-08 10:31:36,670 [INFO] JobScraper - Retrieved 50 jobs from page 1
+2025-06-08 10:31:37,833 [INFO] JobScraper - Successfully fetched page 2 on attempt 1 in 0.66 s
+2025-06-08 10:31:37,834 [INFO] JobScraper - Retrieved 50 jobs from page 2
+2025-06-08 10:31:39,086 [INFO] JobScraper - Successfully fetched page 3 on attempt 1 in 0.75 s
+2025-06-08 10:31:39,087 [INFO] JobScraper - Retrieved 50 jobs from page 3
+2025-06-08 10:31:40,243 [INFO] JobScraper - Successfully fetched page 4 on attempt 1 in 0.66 s
+2025-06-08 10:31:40,244 [INFO] JobScraper - Retrieved 50 jobs from page 4
+2025-06-08 10:31:41,459 [INFO] JobScraper - Successfully fetched page 5 on attempt 1 in 0.71 s
+2025-06-08 10:31:41,460 [INFO] JobScraper - Retrieved 50 jobs from page 5
+2025-06-08 10:31:42,729 [INFO] JobScraper - Successfully fetched page 6 on attempt 1 in 0.77 s
+2025-06-08 10:31:42,730 [INFO] JobScraper - Retrieved 50 jobs from page 6
+2025-06-08 10:31:43,881 [INFO] JobScraper - Successfully fetched page 7 on attempt 1 in 0.65 s
+2025-06-08 10:31:43,881 [INFO] JobScraper - Retrieved 50 jobs from page 7
+2025-06-08 10:31:45,027 [INFO] JobScraper - Successfully fetched page 8 on attempt 1 in 0.65 s
+2025-06-08 10:31:45,028 [INFO] JobScraper - Retrieved 50 jobs from page 8
+2025-06-08 10:31:46,221 [INFO] JobScraper - Successfully fetched page 9 on attempt 1 in 0.69 s
+2025-06-08 10:31:46,222 [INFO] JobScraper - Retrieved 50 jobs from page 9
+2025-06-08 10:31:47,392 [INFO] JobScraper - Successfully fetched page 10 on attempt 1 in 0.67 s
+2025-06-08 10:31:47,393 [INFO] JobScraper - Retrieved 50 jobs from page 10
+2025-06-08 10:31:48,540 [INFO] JobScraper - Successfully fetched page 11 on attempt 1 in 0.65 s
+2025-06-08 10:31:48,541 [INFO] JobScraper - Retrieved 50 jobs from page 11
+2025-06-08 10:31:49,674 [INFO] JobScraper - Successfully fetched page 12 on attempt 1 in 0.63 s
+2025-06-08 10:31:49,675 [INFO] JobScraper - Retrieved 50 jobs from page 12
+2025-06-08 10:31:50,819 [INFO] JobScraper - Successfully fetched page 13 on attempt 1 in 0.64 s
+2025-06-08 10:31:50,820 [INFO] JobScraper - Retrieved 50 jobs from page 13
+2025-06-08 10:31:51,924 [INFO] JobScraper - Successfully fetched page 14 on attempt 1 in 0.60 s
+2025-06-08 10:31:51,925 [INFO] JobScraper - Retrieved 50 jobs from page 14
+2025-06-08 10:31:53,215 [INFO] JobScraper - Successfully fetched page 15 on attempt 1 in 0.79 s
+2025-06-08 10:31:53,216 [INFO] JobScraper - Retrieved 50 jobs from page 15
+2025-06-08 10:31:54,355 [INFO] JobScraper - Successfully fetched page 16 on attempt 1 in 0.64 s
+2025-06-08 10:31:54,356 [INFO] JobScraper - Retrieved 50 jobs from page 16
+2025-06-08 10:31:55,520 [INFO] JobScraper - Successfully fetched page 17 on attempt 1 in 0.66 s
+2025-06-08 10:31:55,521 [INFO] JobScraper - Retrieved 50 jobs from page 17
+2025-06-08 10:31:56,788 [INFO] JobScraper - Successfully fetched page 18 on attempt 1 in 0.77 s
+2025-06-08 10:31:56,789 [INFO] JobScraper - Retrieved 50 jobs from page 18
+2025-06-08 10:31:57,983 [INFO] JobScraper - Successfully fetched page 19 on attempt 1 in 0.69 s
+2025-06-08 10:31:57,983 [INFO] JobScraper - Retrieved 50 jobs from page 19
+2025-06-08 10:31:59,108 [INFO] JobScraper - Successfully fetched page 20 on attempt 1 in 0.62 s
+2025-06-08 10:31:59,109 [INFO] JobScraper - Retrieved 50 jobs from page 20
+2025-06-08 10:31:59,109 [INFO] JobScraper - Saving 1000 jobs to DB in batch_id=b9996b0e-b320-4a9b-972c-046804f945c6
+2025-06-08 10:31:59,334 [INFO] JobScraper - DB upsert complete: 0 jobs inserted/updated for batch b9996b0e-b320-4a9b-972c-046804f945c6
+2025-06-08 10:31:59,613 [INFO] JobScraper - Saved batch 0 with 1000 jobs locally. Total jobs scraped so far: 0
+2025-06-08 10:32:01,004 [INFO] JobScraper - Successfully fetched page 21 on attempt 1 in 0.89 s
+2025-06-08 10:32:01,005 [INFO] JobScraper - Retrieved 50 jobs from page 21
+2025-06-08 10:32:02,222 [INFO] JobScraper - Successfully fetched page 22 on attempt 1 in 0.72 s
+2025-06-08 10:32:02,222 [INFO] JobScraper - Retrieved 50 jobs from page 22
+2025-06-08 10:32:03,370 [INFO] JobScraper - Successfully fetched page 23 on attempt 1 in 0.65 s
+2025-06-08 10:32:03,371 [INFO] JobScraper - Retrieved 50 jobs from page 23
+2025-06-08 10:32:04,568 [INFO] JobScraper - Successfully fetched page 24 on attempt 1 in 0.70 s
+2025-06-08 10:32:04,568 [INFO] JobScraper - Retrieved 50 jobs from page 24
+2025-06-08 10:32:05,813 [INFO] JobScraper - Successfully fetched page 25 on attempt 1 in 0.74 s
+2025-06-08 10:32:05,813 [INFO] JobScraper - Retrieved 50 jobs from page 25
+2025-06-08 10:32:07,277 [INFO] JobScraper - Successfully fetched page 26 on attempt 1 in 0.96 s
+2025-06-08 10:32:07,277 [INFO] JobScraper - Retrieved 50 jobs from page 26
+2025-06-08 10:32:08,507 [INFO] JobScraper - Successfully fetched page 27 on attempt 1 in 0.73 s
+2025-06-08 10:32:08,507 [INFO] JobScraper - Retrieved 50 jobs from page 27
+2025-06-08 10:32:09,802 [INFO] JobScraper - Successfully fetched page 28 on attempt 1 in 0.79 s
+2025-06-08 10:32:09,802 [INFO] JobScraper - Retrieved 50 jobs from page 28
+2025-06-08 10:32:11,360 [INFO] JobScraper - Successfully fetched page 29 on attempt 1 in 1.06 s
+2025-06-08 10:32:11,360 [INFO] JobScraper - Retrieved 50 jobs from page 29
+2025-06-08 10:32:12,580 [INFO] JobScraper - Successfully fetched page 30 on attempt 1 in 0.72 s
+2025-06-08 10:32:12,581 [INFO] JobScraper - Retrieved 50 jobs from page 30
+2025-06-08 10:32:13,841 [INFO] JobScraper - Successfully fetched page 31 on attempt 1 in 0.76 s
+2025-06-08 10:32:13,841 [INFO] JobScraper - Retrieved 50 jobs from page 31
+2025-06-08 10:32:15,146 [INFO] JobScraper - Successfully fetched page 32 on attempt 1 in 0.80 s
+2025-06-08 10:32:15,146 [INFO] JobScraper - Retrieved 50 jobs from page 32
+2025-06-08 10:32:16,365 [INFO] JobScraper - Successfully fetched page 33 on attempt 1 in 0.72 s
+2025-06-08 10:32:16,366 [INFO] JobScraper - Retrieved 50 jobs from page 33
+2025-06-08 10:32:17,500 [INFO] JobScraper - Successfully fetched page 34 on attempt 1 in 0.63 s
+2025-06-08 10:32:17,500 [INFO] JobScraper - Retrieved 50 jobs from page 34
+2025-06-08 10:32:18,804 [INFO] JobScraper - Successfully fetched page 35 on attempt 1 in 0.80 s
+2025-06-08 10:32:18,805 [INFO] JobScraper - Retrieved 50 jobs from page 35
+2025-06-08 10:32:20,028 [INFO] JobScraper - Successfully fetched page 36 on attempt 1 in 0.72 s
+2025-06-08 10:32:20,028 [INFO] JobScraper - Retrieved 50 jobs from page 36
+2025-06-08 10:32:21,531 [INFO] JobScraper - Successfully fetched page 37 on attempt 1 in 1.00 s
+2025-06-08 10:32:21,532 [INFO] JobScraper - Retrieved 50 jobs from page 37
+2025-06-08 10:32:22,866 [INFO] JobScraper - Successfully fetched page 38 on attempt 1 in 0.83 s
+2025-06-08 10:32:22,866 [INFO] JobScraper - Retrieved 50 jobs from page 38
+2025-06-08 10:32:24,092 [INFO] JobScraper - Successfully fetched page 39 on attempt 1 in 0.72 s
+2025-06-08 10:32:24,092 [INFO] JobScraper - Retrieved 50 jobs from page 39
+2025-06-08 10:32:25,319 [INFO] JobScraper - Successfully fetched page 40 on attempt 1 in 0.73 s
+2025-06-08 10:32:25,319 [INFO] JobScraper - Retrieved 50 jobs from page 40
+2025-06-08 10:32:25,319 [INFO] JobScraper - Saving 1000 jobs to DB in batch_id=b3a2e67b-7242-46bb-9616-2d4fe7c85005
+2025-06-08 10:32:25,502 [INFO] JobScraper - DB upsert complete: 0 jobs inserted/updated for batch b3a2e67b-7242-46bb-9616-2d4fe7c85005
+2025-06-08 10:32:25,731 [INFO] JobScraper - Saved batch 1 with 1000 jobs locally. Total jobs scraped so far: 1000
+2025-06-08 10:32:26,893 [INFO] JobScraper - Successfully fetched page 41 on attempt 1 in 0.66 s
+2025-06-08 10:32:26,894 [INFO] JobScraper - Retrieved 50 jobs from page 41
+2025-06-08 10:32:28,277 [INFO] JobScraper - Successfully fetched page 42 on attempt 1 in 0.88 s
+2025-06-08 10:32:28,277 [INFO] JobScraper - Retrieved 50 jobs from page 42
+2025-06-08 10:32:29,512 [INFO] JobScraper - Successfully fetched page 43 on attempt 1 in 0.73 s
+2025-06-08 10:32:29,513 [INFO] JobScraper - Retrieved 50 jobs from page 43
+2025-06-08 10:32:30,728 [INFO] JobScraper - Successfully fetched page 44 on attempt 1 in 0.71 s
+2025-06-08 10:32:30,729 [INFO] JobScraper - Retrieved 50 jobs from page 44
+2025-06-08 10:32:31,894 [INFO] JobScraper - Successfully fetched page 45 on attempt 1 in 0.67 s
+2025-06-08 10:32:31,895 [INFO] JobScraper - Retrieved 50 jobs from page 45
+2025-06-08 10:32:33,075 [INFO] JobScraper - Successfully fetched page 46 on attempt 1 in 0.68 s
+2025-06-08 10:32:33,076 [INFO] JobScraper - Retrieved 50 jobs from page 46
+2025-06-08 10:32:34,273 [INFO] JobScraper - Successfully fetched page 47 on attempt 1 in 0.70 s
+2025-06-08 10:32:34,273 [INFO] JobScraper - Retrieved 50 jobs from page 47
+2025-06-08 10:32:35,480 [INFO] JobScraper - Successfully fetched page 48 on attempt 1 in 0.71 s
+2025-06-08 10:32:35,480 [INFO] JobScraper - Retrieved 50 jobs from page 48
+2025-06-08 10:32:36,610 [INFO] JobScraper - Successfully fetched page 49 on attempt 1 in 0.63 s
+2025-06-08 10:32:36,611 [INFO] JobScraper - Retrieved 50 jobs from page 49
+2025-06-08 10:32:37,865 [INFO] JobScraper - Successfully fetched page 50 on attempt 1 in 0.75 s
+2025-06-08 10:32:37,865 [INFO] JobScraper - Retrieved 50 jobs from page 50
+2025-06-08 10:32:39,097 [INFO] JobScraper - Successfully fetched page 51 on attempt 1 in 0.73 s
+2025-06-08 10:32:39,098 [INFO] JobScraper - Retrieved 50 jobs from page 51
+2025-06-08 10:32:40,351 [INFO] JobScraper - Successfully fetched page 52 on attempt 1 in 0.75 s
+2025-06-08 10:32:40,351 [INFO] JobScraper - Retrieved 50 jobs from page 52
+2025-06-08 10:32:41,535 [INFO] JobScraper - Successfully fetched page 53 on attempt 1 in 0.68 s
+2025-06-08 10:32:41,535 [INFO] JobScraper - Retrieved 50 jobs from page 53
+2025-06-08 10:32:42,666 [INFO] JobScraper - Successfully fetched page 54 on attempt 1 in 0.63 s
+2025-06-08 10:32:42,667 [INFO] JobScraper - Retrieved 50 jobs from page 54
+2025-06-08 10:32:43,980 [INFO] JobScraper - Successfully fetched page 55 on attempt 1 in 0.81 s
+2025-06-08 10:32:43,980 [INFO] JobScraper - Retrieved 50 jobs from page 55
+2025-06-08 10:32:45,299 [INFO] JobScraper - Successfully fetched page 56 on attempt 1 in 0.82 s
+2025-06-08 10:32:45,300 [INFO] JobScraper - Retrieved 50 jobs from page 56
+2025-06-08 10:32:46,490 [INFO] JobScraper - Successfully fetched page 57 on attempt 1 in 0.69 s
+2025-06-08 10:32:46,490 [INFO] JobScraper - Retrieved 50 jobs from page 57
+2025-06-08 10:32:47,674 [INFO] JobScraper - Successfully fetched page 58 on attempt 1 in 0.68 s
+2025-06-08 10:32:47,675 [INFO] JobScraper - Retrieved 50 jobs from page 58
+2025-06-08 10:32:48,865 [INFO] JobScraper - Successfully fetched page 59 on attempt 1 in 0.69 s
+2025-06-08 10:32:48,865 [INFO] JobScraper - Retrieved 50 jobs from page 59
+2025-06-08 10:32:50,037 [INFO] JobScraper - Successfully fetched page 60 on attempt 1 in 0.67 s
+2025-06-08 10:32:50,037 [INFO] JobScraper - Retrieved 50 jobs from page 60
+2025-06-08 10:32:50,037 [INFO] JobScraper - Saving 1000 jobs to DB in batch_id=b01f3ea3-7be7-4dda-b117-8faa2cd48316
+2025-06-08 10:32:50,187 [INFO] JobScraper - DB upsert complete: 0 jobs inserted/updated for batch b01f3ea3-7be7-4dda-b117-8faa2cd48316
+2025-06-08 10:32:50,421 [INFO] JobScraper - Saved batch 2 with 1000 jobs locally. Total jobs scraped so far: 2000
+2025-06-08 10:32:51,659 [INFO] JobScraper - Successfully fetched page 61 on attempt 1 in 0.73 s
+2025-06-08 10:32:51,660 [INFO] JobScraper - Retrieved 50 jobs from page 61
+2025-06-08 10:32:52,872 [INFO] JobScraper - Successfully fetched page 62 on attempt 1 in 0.71 s
+2025-06-08 10:32:52,873 [INFO] JobScraper - Retrieved 50 jobs from page 62
+2025-06-08 10:32:54,126 [INFO] JobScraper - Successfully fetched page 63 on attempt 1 in 0.75 s
+2025-06-08 10:32:54,126 [INFO] JobScraper - Retrieved 50 jobs from page 63
+2025-06-08 10:32:55,299 [INFO] JobScraper - Successfully fetched page 64 on attempt 1 in 0.67 s
+2025-06-08 10:32:55,300 [INFO] JobScraper - Retrieved 50 jobs from page 64
+2025-06-08 10:32:56,505 [INFO] JobScraper - Successfully fetched page 65 on attempt 1 in 0.70 s
+2025-06-08 10:32:56,506 [INFO] JobScraper - Retrieved 50 jobs from page 65
+2025-06-08 10:32:57,753 [INFO] JobScraper - Successfully fetched page 66 on attempt 1 in 0.75 s
+2025-06-08 10:32:57,753 [INFO] JobScraper - Retrieved 50 jobs from page 66
+2025-06-08 10:32:59,019 [INFO] JobScraper - Successfully fetched page 67 on attempt 1 in 0.77 s
+2025-06-08 10:32:59,019 [INFO] JobScraper - Retrieved 50 jobs from page 67
+2025-06-08 10:33:00,207 [INFO] JobScraper - Successfully fetched page 68 on attempt 1 in 0.69 s
+2025-06-08 10:33:00,207 [INFO] JobScraper - Retrieved 50 jobs from page 68
+2025-06-08 10:33:01,517 [INFO] JobScraper - Successfully fetched page 69 on attempt 1 in 0.81 s
+2025-06-08 10:33:01,517 [INFO] JobScraper - Retrieved 50 jobs from page 69
+2025-06-08 10:33:02,703 [INFO] JobScraper - Successfully fetched page 70 on attempt 1 in 0.69 s
+2025-06-08 10:33:02,703 [INFO] JobScraper - Retrieved 50 jobs from page 70
+2025-06-08 10:33:03,922 [INFO] JobScraper - Successfully fetched page 71 on attempt 1 in 0.72 s
+2025-06-08 10:33:03,922 [INFO] JobScraper - Retrieved 50 jobs from page 71
+2025-06-08 10:33:05,143 [INFO] JobScraper - Successfully fetched page 72 on attempt 1 in 0.72 s
+2025-06-08 10:33:05,144 [INFO] JobScraper - Retrieved 50 jobs from page 72
+2025-06-08 10:33:06,384 [INFO] JobScraper - Successfully fetched page 73 on attempt 1 in 0.74 s
+2025-06-08 10:33:06,385 [INFO] JobScraper - Retrieved 50 jobs from page 73
+2025-06-08 10:33:07,624 [INFO] JobScraper - Successfully fetched page 74 on attempt 1 in 0.74 s
+2025-06-08 10:33:07,624 [INFO] JobScraper - Retrieved 50 jobs from page 74
+2025-06-08 10:33:08,844 [INFO] JobScraper - Successfully fetched page 75 on attempt 1 in 0.72 s
+2025-06-08 10:33:08,845 [INFO] JobScraper - Retrieved 50 jobs from page 75
+2025-06-08 10:33:10,085 [INFO] JobScraper - Successfully fetched page 76 on attempt 1 in 0.74 s
+2025-06-08 10:33:10,085 [INFO] JobScraper - Retrieved 50 jobs from page 76
+2025-06-08 10:33:11,338 [INFO] JobScraper - Successfully fetched page 77 on attempt 1 in 0.75 s
+2025-06-08 10:33:11,338 [INFO] JobScraper - Retrieved 50 jobs from page 77
+2025-06-08 10:33:12,541 [INFO] JobScraper - Successfully fetched page 78 on attempt 1 in 0.70 s
+2025-06-08 10:33:12,542 [INFO] JobScraper - Retrieved 50 jobs from page 78
+2025-06-08 10:33:13,802 [INFO] JobScraper - Successfully fetched page 79 on attempt 1 in 0.76 s
+2025-06-08 10:33:13,802 [INFO] JobScraper - Retrieved 50 jobs from page 79
+2025-06-08 10:33:15,158 [INFO] JobScraper - Successfully fetched page 80 on attempt 1 in 0.85 s
+2025-06-08 10:33:15,158 [INFO] JobScraper - Retrieved 50 jobs from page 80
+2025-06-08 10:33:15,158 [INFO] JobScraper - Saving 1000 jobs to DB in batch_id=9b08fca0-0f9c-4889-8a90-d6d504b4b06b
+2025-06-08 10:33:15,317 [INFO] JobScraper - DB upsert complete: 0 jobs inserted/updated for batch 9b08fca0-0f9c-4889-8a90-d6d504b4b06b
+2025-06-08 10:33:15,526 [INFO] JobScraper - Saved batch 3 with 1000 jobs locally. Total jobs scraped so far: 3000
+2025-06-08 10:33:16,792 [INFO] JobScraper - Successfully fetched page 81 on attempt 1 in 0.76 s
+2025-06-08 10:33:16,792 [INFO] JobScraper - Retrieved 50 jobs from page 81
+2025-06-08 10:33:18,104 [INFO] JobScraper - Successfully fetched page 82 on attempt 1 in 0.81 s
+2025-06-08 10:33:18,104 [INFO] JobScraper - Retrieved 50 jobs from page 82
+2025-06-08 10:33:19,443 [INFO] JobScraper - Successfully fetched page 83 on attempt 1 in 0.84 s
+2025-06-08 10:33:19,444 [INFO] JobScraper - Retrieved 50 jobs from page 83
+2025-06-08 10:33:20,663 [INFO] JobScraper - Successfully fetched page 84 on attempt 1 in 0.72 s
+2025-06-08 10:33:20,663 [INFO] JobScraper - Retrieved 50 jobs from page 84
+2025-06-08 10:33:21,883 [INFO] JobScraper - Successfully fetched page 85 on attempt 1 in 0.72 s
+2025-06-08 10:33:21,883 [INFO] JobScraper - Retrieved 50 jobs from page 85
+2025-06-08 10:33:23,102 [INFO] JobScraper - Successfully fetched page 86 on attempt 1 in 0.72 s
+2025-06-08 10:33:23,103 [INFO] JobScraper - Retrieved 50 jobs from page 86
+2025-06-08 10:33:24,293 [INFO] JobScraper - Successfully fetched page 87 on attempt 1 in 0.69 s
+2025-06-08 10:33:24,293 [INFO] JobScraper - Retrieved 50 jobs from page 87
+2025-06-08 10:33:25,591 [INFO] JobScraper - Successfully fetched page 88 on attempt 1 in 0.80 s
+2025-06-08 10:33:25,592 [INFO] JobScraper - Retrieved 50 jobs from page 88
+2025-06-08 10:33:26,806 [INFO] JobScraper - Successfully fetched page 89 on attempt 1 in 0.71 s
+2025-06-08 10:33:26,806 [INFO] JobScraper - Retrieved 50 jobs from page 89
+2025-06-08 10:33:28,004 [INFO] JobScraper - Successfully fetched page 90 on attempt 1 in 0.70 s
+2025-06-08 10:33:28,004 [INFO] JobScraper - Retrieved 50 jobs from page 90
+2025-06-08 10:33:29,186 [INFO] JobScraper - Successfully fetched page 91 on attempt 1 in 0.68 s
+2025-06-08 10:33:29,187 [INFO] JobScraper - Retrieved 50 jobs from page 91
+2025-06-08 10:33:30,370 [INFO] JobScraper - Successfully fetched page 92 on attempt 1 in 0.68 s
+2025-06-08 10:33:30,370 [INFO] JobScraper - Retrieved 50 jobs from page 92
+2025-06-08 10:33:31,509 [INFO] JobScraper - Successfully fetched page 93 on attempt 1 in 0.64 s
+2025-06-08 10:33:31,509 [INFO] JobScraper - Retrieved 50 jobs from page 93
+2025-06-08 10:33:32,751 [INFO] JobScraper - Successfully fetched page 94 on attempt 1 in 0.74 s
+2025-06-08 10:33:32,751 [INFO] JobScraper - Retrieved 50 jobs from page 94
+2025-06-08 10:33:34,051 [INFO] JobScraper - Successfully fetched page 95 on attempt 1 in 0.80 s
+2025-06-08 10:33:34,052 [INFO] JobScraper - Retrieved 50 jobs from page 95
+2025-06-08 10:33:35,290 [INFO] JobScraper - Successfully fetched page 96 on attempt 1 in 0.74 s
+2025-06-08 10:33:35,290 [INFO] JobScraper - Retrieved 50 jobs from page 96
+2025-06-08 10:33:36,605 [INFO] JobScraper - Successfully fetched page 97 on attempt 1 in 0.81 s
+2025-06-08 10:33:36,605 [INFO] JobScraper - Retrieved 50 jobs from page 97
+2025-06-08 10:33:37,790 [INFO] JobScraper - Successfully fetched page 98 on attempt 1 in 0.68 s
+2025-06-08 10:33:37,790 [INFO] JobScraper - Retrieved 50 jobs from page 98
+2025-06-08 10:33:38,989 [INFO] JobScraper - Successfully fetched page 99 on attempt 1 in 0.70 s
+2025-06-08 10:33:38,990 [INFO] JobScraper - Retrieved 50 jobs from page 99
+2025-06-08 10:33:40,160 [INFO] JobScraper - Successfully fetched page 100 on attempt 1 in 0.67 s
+2025-06-08 10:33:40,160 [INFO] JobScraper - Retrieved 50 jobs from page 100
+2025-06-08 10:33:40,160 [INFO] JobScraper - Saving 1000 jobs to DB in batch_id=438108f1-f6bc-492f-846b-5efe9dc80bba
+2025-06-08 10:33:40,303 [INFO] JobScraper - DB upsert complete: 0 jobs inserted/updated for batch 438108f1-f6bc-492f-846b-5efe9dc80bba
+2025-06-08 10:33:40,470 [INFO] JobScraper - Saved batch 4 with 1000 jobs locally. Total jobs scraped so far: 4000
+2025-06-08 10:33:41,699 [INFO] JobScraper - Successfully fetched page 101 on attempt 1 in 0.72 s
+2025-06-08 10:33:41,699 [INFO] JobScraper - Retrieved 50 jobs from page 101
+2025-06-08 10:33:42,934 [INFO] JobScraper - Successfully fetched page 102 on attempt 1 in 0.73 s
+2025-06-08 10:33:42,935 [INFO] JobScraper - Retrieved 50 jobs from page 102
+2025-06-08 10:33:44,166 [INFO] JobScraper - Successfully fetched page 103 on attempt 1 in 0.73 s
+2025-06-08 10:33:44,166 [INFO] JobScraper - Retrieved 50 jobs from page 103
+2025-06-08 10:34:00,474 [INFO] JobScraper - Successfully fetched page 104 on attempt 1 in 15.81 s
+2025-06-08 10:34:00,474 [INFO] JobScraper - Retrieved 50 jobs from page 104
+2025-06-08 10:34:01,927 [INFO] JobScraper - Successfully fetched page 105 on attempt 1 in 0.95 s
+2025-06-08 10:34:01,927 [INFO] JobScraper - Retrieved 50 jobs from page 105
+2025-06-08 10:34:03,129 [INFO] JobScraper - Successfully fetched page 106 on attempt 1 in 0.70 s
+2025-06-08 10:34:03,129 [INFO] JobScraper - Retrieved 50 jobs from page 106
+2025-06-08 10:34:04,339 [INFO] JobScraper - Successfully fetched page 107 on attempt 1 in 0.71 s
+2025-06-08 10:34:04,339 [INFO] JobScraper - Retrieved 50 jobs from page 107
+2025-06-08 10:34:05,600 [INFO] JobScraper - Successfully fetched page 108 on attempt 1 in 0.76 s
+2025-06-08 10:34:05,600 [INFO] JobScraper - Retrieved 50 jobs from page 108
+2025-06-08 10:34:06,887 [INFO] JobScraper - Successfully fetched page 109 on attempt 1 in 0.79 s
+2025-06-08 10:34:06,887 [INFO] JobScraper - Retrieved 50 jobs from page 109
+2025-06-08 10:34:08,183 [INFO] JobScraper - Successfully fetched page 110 on attempt 1 in 0.80 s
+2025-06-08 10:34:08,184 [INFO] JobScraper - Retrieved 50 jobs from page 110
+2025-06-08 10:34:09,413 [INFO] JobScraper - Successfully fetched page 111 on attempt 1 in 0.73 s
+2025-06-08 10:34:09,414 [INFO] JobScraper - Retrieved 50 jobs from page 111
