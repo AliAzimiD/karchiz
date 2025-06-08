@@ -4,6 +4,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from superset.app import create_app
 from superset.extensions import db
 
+from src.log_setup import get_logger
+
+
+logger = get_logger("superset_setup")
+
 
 def verify_database(uri: str) -> bool:
     """Check that the PostgreSQL database is reachable."""
@@ -13,7 +18,7 @@ def verify_database(uri: str) -> bool:
             connection.execute("SELECT 1")
         return True
     except SQLAlchemyError as exc:
-        print(f"Unable to connect to database: {exc}")
+        logger.error(f"Unable to connect to database: {exc}")
         return False
 
 
@@ -38,11 +43,11 @@ with app.app_context():
         db_obj = session.query(Database).filter_by(database_name=name).first()
         if db_obj:
             db_obj.sqlalchemy_uri = uri
-            print(f"Database '{name}' updated in Superset")
+            logger.info(f"Database '{name}' updated in Superset")
         else:
             db_obj = Database(database_name=name, sqlalchemy_uri=uri)
             session.add(db_obj)
-            print(f"Database '{name}' created in Superset")
+            logger.info(f"Database '{name}' created in Superset")
         session.commit()
     else:
-        print("Skipping Superset DB setup due to connection error")
+        logger.error("Skipping Superset DB setup due to connection error")
