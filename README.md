@@ -91,6 +91,22 @@ NGINX_PORT=80 make start
 Once started, visit `http://<SERVER_NAME>` for the Superset UI and
 `/metrics` or `/health` for monitoring endpoints.
 
+### Ubuntu 22.04 VPS Deployment
+The stack runs well on a small VPS using Docker Compose. After provisioning an
+Ubuntu 22.04 machine, install Docker and clone the repository:
+
+```bash
+sudo apt update && sudo apt install -y git docker.io docker-compose
+sudo systemctl enable --now docker
+git clone https://github.com/AliAzimiD/karchiz.git && cd karchiz
+make build
+make start
+```
+
+Set the `SERVER_NAME` and other environment variables as needed for your server.
+Superset will be reachable at `http://<SERVER_NAME>` and the scraper metrics at
+`http://<SERVER_NAME>:8080/metrics`.
+
 ### Local Development
 1. `python -m venv venv && source venv/bin/activate`
 2. `pip install -r requirements.txt`
