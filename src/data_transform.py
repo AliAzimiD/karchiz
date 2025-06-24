@@ -71,4 +71,3 @@ def extract_tables(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Dat
 
 
 __all__ = ["load_raw_csv", "extract_tables"]
-

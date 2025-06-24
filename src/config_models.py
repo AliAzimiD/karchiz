@@ -17,7 +17,9 @@ class APIConfig(ConfigBase):
     """Configuration options for the API section."""
 
     base_url: str = Field("", description="Base URL for the API endpoint")
-    headers: Dict[str, str] = Field(default_factory=dict, description="HTTP headers to include")
+    headers: Dict[str, str] = Field(
+        default_factory=dict, description="HTTP headers to include"
+    )
 
 
 class RequestConfig(ConfigBase):

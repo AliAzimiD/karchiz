@@ -1,4 +1,5 @@
 import asyncio
+
 from main import load_config
 from src.db_manager import DatabaseManager
 from src.health import HealthCheck

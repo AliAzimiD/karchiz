@@ -73,9 +73,23 @@ filters records. `_process_jobs()` writes the cleaned jobs to the database via
 
 ### Docker Deployment
 1. `make build`  
-2. `make start`  
+2. `make start`
 
 The scraper container runs automatically, uses a cron job to schedule repeated scraping, and logs to `job_data/logs/`.
+An additional `nginx` service proxies HTTP traffic from a configurable port
+(default `80`) to Superset (port specified by `SUPERSET_PORT`, default
+`8088`) and exposes the scraper's `/metrics` and `/health` endpoints from the
+port defined by `SCRAPER_PORT` (default `8080`). Set the `SERVER_NAME`
+environment variable and optionally override these port variables when running
+`docker-compose`, e.g.:
+
+```bash
+SERVER_NAME=karchiz.upgrade4u.space SUPERSET_PORT=8088 SCRAPER_PORT=8080 \
+NGINX_PORT=80 make start
+```
+
+Once started, visit `http://<SERVER_NAME>` for the Superset UI and
+`/metrics` or `/health` for monitoring endpoints.
 
 ### Local Development
 1. `python -m venv venv && source venv/bin/activate`
@@ -111,12 +125,15 @@ If Codex does not have internet access when your environment is created,
 consider placing the install command in a `setup.sh` script so the required
 packages can be preinstalled during container setup.
 
-Configuration
-config/api_config.yaml: Main scraping + DB parameters
-Environment variables override YAML settings. Database credentials are pulled
-from `POSTGRES_*` variables or files so no passwords live in the repo.
+### Configuration
+The main settings live in `config/api_config.yaml`. Database credentials are
+loaded from `POSTGRES_*` variables or Docker secrets so no passwords live in the
+repository. You can override the API endpoint by setting the environment
+variable `API_BASE_URL`.
+
 CI/CD
-Minimal example in .github/workflows/ci.yml sets up mypy checks, lint, bandit, tests, code coverage.
+Minimal example in `.github/workflows/ci.yml` sets up mypy checks, lint,
+bandit, tests and code coverage.
 
 ## Data Visualization with Superset
 This project integrates [Apache Superset](https://superset.apache.org/) for exploring the scraped
@@ -140,28 +157,27 @@ full SQLAlchemy URI overrides the individual host and credential variables. The
 helper script now verifies the connection before registering it with Superset and
 logs any connection errors for easier debugging.
 
-Once running, visit [http://localhost:8088](http://localhost:8088) and log in
+Once running, visit `http://localhost:${SUPERSET_PORT}` (default
+`http://localhost:8088`) and log in
 using the default credentials `admin`/`admin`. Superset is pre-configured to
 connect to the `jobsdb` database so you can start building charts immediately.
 The container installs the PostgreSQL driver at startup using
-
 `PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary`.
 
-
-Monitoring
-health.py listens on /health and /metrics.
-Integration with Prometheus or other monitoring solutions is possible by adding Prometheus exporters.
 
 ## Monitoring
 `health.py` exposes `/health` and `/metrics`. The `/metrics` endpoint now serves Prometheus-formatted metrics using `prometheus_client`.
 
-When running with the provided Docker Compose file, port `8080` is mapped, so a Prometheus server can scrape metrics from `http://localhost:8080/metrics`.
+When running with the provided Docker Compose file, the metrics are exposed on
+`SCRAPER_PORT` (default `8080`), so a Prometheus server can scrape metrics from
+`http://localhost:${SCRAPER_PORT}/metrics`.
 
 Integration with Prometheus or other monitoring solutions is straightforward—just add a scrape job pointing at the above URL.
 
-Security & Secrets
-Uses Docker secrets (db_password_file) for DB.
-For advanced production, adopt AWS Secrets Manager, Vault, or other secure secret retrieval.
-License
+## Security & Secrets
+Uses Docker secrets for the database password. For advanced production, adopt
+AWS Secrets Manager, Vault, or another secure secret source.
+
+## License
 [Specify your license here, e.g. MIT]
 

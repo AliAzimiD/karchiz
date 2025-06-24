@@ -3,16 +3,16 @@ log_setup.py
 Centralized logging configuration to be used by all modules in the Job Scraper project.
 """
 import logging
-import sys
-from pathlib import Path
-from datetime import datetime
 import os
+import sys
+from datetime import datetime
+from pathlib import Path
 
 
 def get_logger(
     name: str = "job_scraper",
     log_dir: str = "job_data/logs",
-    log_level_env_var: str = "LOG_LEVEL"
+    log_level_env_var: str = "LOG_LEVEL",
 ) -> logging.Logger:
     """
     Return a configured logger instance that writes to both console and a rolling file.
@@ -57,5 +57,7 @@ def get_logger(
     logger.addHandler(ch)
     logger.propagate = False
 
-    logger.info(f"Logger {name} initialized at level {log_level_str}. Log file: {log_file_path}")
+    logger.info(
+        f"Logger {name} initialized at level {log_level_str}. Log file: {log_file_path}"
+    )
     return logger

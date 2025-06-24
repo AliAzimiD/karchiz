@@ -10,4 +10,3 @@ def test_create_payload(monkeypatch, tmp_path):
     payload = scraper.create_payload(page=2)
     assert payload["page"] == 2
     assert payload["pageSize"] == scraper.scraper_config.get("batch_size", 100)
-

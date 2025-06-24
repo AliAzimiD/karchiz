@@ -1,10 +1,10 @@
+import logging
 import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from superset.app import create_app
 from superset.extensions import db
-
-import logging
 
 
 def get_logger(name: str = "superset_setup") -> logging.Logger:
