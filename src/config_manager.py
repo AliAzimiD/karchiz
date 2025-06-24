@@ -1,19 +1,20 @@
 import json
-import yaml
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import yaml
 from pydantic import ValidationError
 
-from .log_setup import get_logger
 from .config_models import (
-    AppConfig,
     APIConfig,
+    AppConfig,
+    DatabaseConfig,
     RequestConfig,
     ScraperConfig,
-    DatabaseConfig,
 )
+from .log_setup import get_logger
 
 # Central logger for ConfigManager
 logger = get_logger("ConfigManager")
@@ -50,6 +51,11 @@ class ConfigManager:
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 raw_config = yaml.safe_load(f) or {}
+
+            env_base_url = os.getenv("API_BASE_URL")
+            if env_base_url:
+                raw_config.setdefault("api", {})
+                raw_config["api"]["base_url"] = env_base_url
 
             try:
                 parsed = AppConfig.model_validate(raw_config)
@@ -188,8 +194,8 @@ class ConfigManager:
         """
         rl = self.scraper_config.rate_limit
         return {
-            'requests_per_minute': rl.requests_per_minute,
-            'burst': rl.burst,
+            "requests_per_minute": rl.requests_per_minute,
+            "burst": rl.burst,
         }
 
     def get_retry_config(self) -> Dict[str, Any]:
@@ -201,9 +207,9 @@ class ConfigManager:
         """
         rd = self.scraper_config.retry_delay
         return {
-            'max_retries': self.scraper_config.max_retries,
-            'min_delay': rd.min,
-            'max_delay': rd.max,
+            "max_retries": self.scraper_config.max_retries,
+            "min_delay": rd.min,
+            "max_delay": rd.max,
         }
 
     def get_monitoring_config(self) -> Dict[str, Any]:
@@ -225,14 +231,14 @@ class ConfigManager:
             value (Any): New value to store.
         """
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             if section not in config:
                 config[section] = {}
             config[section][key] = value
 
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 yaml.dump(config, f, default_flow_style=False)
 
             # Reload the config into memory

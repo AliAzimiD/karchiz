@@ -4,18 +4,21 @@ import os
 import signal
 import sys
 import time
-import yaml
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-from src.scraper import JobScraper
-from src.health import HealthCheck
-from src.db_manager import DatabaseManager
-from src.log_setup import get_logger  # Centralized logger
+import yaml
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # For imports
+from src.db_manager import DatabaseManager
+from src.health import HealthCheck
+from src.log_setup import get_logger  # Centralized logger
+from src.scraper import JobScraper
+
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)  # For imports
 
 
 class GracefulExit:
@@ -23,6 +26,7 @@ class GracefulExit:
     Handles graceful shutdown for the application by capturing
     SIGINT and SIGTERM signals, then running registered async tasks.
     """
+
     def __init__(self) -> None:
         self.shutdown: bool = False
         self.shutdown_tasks: list[Any] = []
@@ -103,7 +107,7 @@ async def lifespan():
             "graceful_exit": graceful_exit,
             "logger": logger,
             "db_manager": db_manager,
-            "config": config
+            "config": config,
         }
 
     except Exception as e:
@@ -154,6 +158,7 @@ def load_config() -> Dict[str, Any]:
     if os.path.exists(config_path):
         try:
             import yaml
+
             with open(config_path, "r", encoding="utf-8") as f:
                 file_config = yaml.safe_load(f)
                 for section in config:
@@ -176,9 +181,9 @@ def load_config() -> Dict[str, Any]:
         with open(pw_file, "r", encoding="utf-8") as pf:
             db_password = pf.read().strip()
 
-    config["database"]["connection_string"] = (
-        f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    )
+    config["database"][
+        "connection_string"
+    ] = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     if db_schema_env:
         config["database"]["db_schema"] = db_schema_env
 
@@ -190,7 +195,9 @@ def load_config() -> Dict[str, Any]:
         config["app"]["log_level"] = os.getenv("LOG_LEVEL")
 
     if os.getenv("ENABLE_HEALTH_CHECK"):
-        config["app"]["enable_health_check"] = os.getenv("ENABLE_HEALTH_CHECK").lower() == "true"
+        config["app"]["enable_health_check"] = (
+            os.getenv("ENABLE_HEALTH_CHECK").lower() == "true"
+        )
 
     if os.getenv("HEALTH_PORT"):
         config["app"]["health_port"] = int(os.getenv("HEALTH_PORT"))
@@ -233,6 +240,7 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
     try:
         # Create the scraper with the DB manager
         from src.scraper import JobScraper
+
         scraper = JobScraper(
             config_path=config["scraper"]["config_path"],
             save_dir=config["scraper"]["save_dir"],
@@ -250,12 +258,14 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
         try:
             # Actually scrape
             result = await scraper.run()
-            stats.update({
-                "total_jobs_scraped": result.get("total_jobs", 0),
-                "pages_processed": result.get("pages_processed", 0),
-                # If you track new_jobs separately, include here
-                "status": "completed"
-            })
+            stats.update(
+                {
+                    "total_jobs_scraped": result.get("total_jobs", 0),
+                    "pages_processed": result.get("pages_processed", 0),
+                    # If you track new_jobs separately, include here
+                    "status": "completed",
+                }
+            )
             logger.info(
                 f"Scraper run completed. Processed {stats['pages_processed']} pages, "
                 f"total {stats['total_jobs_scraped']} jobs."

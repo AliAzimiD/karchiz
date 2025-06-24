@@ -4,8 +4,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .scraper import JobScraper
 from .log_setup import get_logger
+from .scraper import JobScraper
+
 
 class JobScraperScheduler:
     """
@@ -54,7 +55,9 @@ class JobScraperScheduler:
                     f"Jobs collected so far: {scraper.total_jobs_scraped}"
                 )
 
-                self.logger.info(f"Waiting {self.interval_minutes} minutes until next run.")
+                self.logger.info(
+                    f"Waiting {self.interval_minutes} minutes until next run."
+                )
                 await asyncio.sleep(self.interval_minutes * 60)
             except Exception as e:
                 self.logger.error(f"Error in JobScraperScheduler: {str(e)}")

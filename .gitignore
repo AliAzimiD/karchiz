@@ -24,6 +24,11 @@ var/
 venv/
 ENV/
 
+# Coverage reports and logs
+htmlcov/
+.coverage
+job_data/
+
 
 
 # IDE specific files

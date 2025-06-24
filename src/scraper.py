@@ -1,18 +1,18 @@
-import aiohttp
 import asyncio
 import json
+import time
 import traceback
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import aiohttp
 import pandas as pd
 from tenacity import AsyncRetrying, RetryCallState, stop_after_attempt, wait_exponential
-import time
 
 from .config_manager import ConfigManager
-from .config_models import APIConfig, RequestConfig, ScraperConfig, DatabaseConfig
+from .config_models import APIConfig, DatabaseConfig, RequestConfig, ScraperConfig
 from .db_manager import DatabaseManager
 from .log_setup import get_logger
 
@@ -381,7 +381,6 @@ class JobScraper:
                     if len(self.failed_requests) >= self.scraper_config.get(
                         "max_retries", 5
                     ):
-
                         self.logger.error(f"Too many failed requests, stopping.")
                         break
                     await asyncio.sleep(self.scraper_config.error_sleep_time)
