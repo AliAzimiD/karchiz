@@ -76,13 +76,16 @@ filters records. `_process_jobs()` writes the cleaned jobs to the database via
 2. `make start`
 
 The scraper container runs automatically, uses a cron job to schedule repeated scraping, and logs to `job_data/logs/`.
-An additional `nginx` service is included which proxies HTTP traffic on port `80`
-to Superset (port `8088`) and exposes the scraper's `/metrics` and `/health`
-endpoints. Set the `SERVER_NAME` environment variable when running
-`docker-compose` to control the public hostname, e.g.:
+An additional `nginx` service proxies HTTP traffic from a configurable port
+(default `80`) to Superset (port specified by `SUPERSET_PORT`, default
+`8088`) and exposes the scraper's `/metrics` and `/health` endpoints from the
+port defined by `SCRAPER_PORT` (default `8080`). Set the `SERVER_NAME`
+environment variable and optionally override these port variables when running
+`docker-compose`, e.g.:
 
 ```bash
-SERVER_NAME=karchiz.upgrade4u.space make start
+SERVER_NAME=karchiz.upgrade4u.space SUPERSET_PORT=8088 SCRAPER_PORT=8080 \
+NGINX_PORT=80 make start
 ```
 
 Once started, visit `http://<SERVER_NAME>` for the Superset UI and
@@ -151,7 +154,8 @@ full SQLAlchemy URI overrides the individual host and credential variables. The
 helper script now verifies the connection before registering it with Superset and
 logs any connection errors for easier debugging.
 
-Once running, visit [http://localhost:8088](http://localhost:8088) and log in
+Once running, visit `http://localhost:${SUPERSET_PORT}` (default
+`http://localhost:8088`) and log in
 using the default credentials `admin`/`admin`. Superset is pre-configured to
 connect to the `jobsdb` database so you can start building charts immediately.
 The container installs the PostgreSQL driver at startup using
@@ -166,7 +170,9 @@ Integration with Prometheus or other monitoring solutions is possible by adding 
 ## Monitoring
 `health.py` exposes `/health` and `/metrics`. The `/metrics` endpoint now serves Prometheus-formatted metrics using `prometheus_client`.
 
-When running with the provided Docker Compose file, port `8080` is mapped, so a Prometheus server can scrape metrics from `http://localhost:8080/metrics`.
+When running with the provided Docker Compose file, the metrics are exposed on
+`SCRAPER_PORT` (default `8080`), so a Prometheus server can scrape metrics from
+`http://localhost:${SCRAPER_PORT}/metrics`.
 
 Integration with Prometheus or other monitoring solutions is straightforward—just add a scrape job pointing at the above URL.
 
