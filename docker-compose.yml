@@ -141,6 +141,21 @@ services:
     secrets:
       - db_password
 
+  nginx:
+    image: nginx:alpine
+    container_name: karchiz_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      - SERVER_NAME=${SERVER_NAME:-karchiz.upgrade4u.space}
+    depends_on:
+      - superset
+      - scraper
+    networks:
+      - scraper-network
+
 volumes:
   postgres_data:
     name: job_postgres_data

@@ -73,9 +73,20 @@ filters records. `_process_jobs()` writes the cleaned jobs to the database via
 
 ### Docker Deployment
 1. `make build`  
-2. `make start`  
+2. `make start`
 
 The scraper container runs automatically, uses a cron job to schedule repeated scraping, and logs to `job_data/logs/`.
+An additional `nginx` service is included which proxies HTTP traffic on port `80`
+to Superset (port `8088`) and exposes the scraper's `/metrics` and `/health`
+endpoints. Set the `SERVER_NAME` environment variable when running
+`docker-compose` to control the public hostname, e.g.:
+
+```bash
+SERVER_NAME=karchiz.upgrade4u.space make start
+```
+
+Once started, visit `http://<SERVER_NAME>` for the Superset UI and
+`/metrics` or `/health` for monitoring endpoints.
 
 ### Local Development
 1. `python -m venv venv && source venv/bin/activate`
