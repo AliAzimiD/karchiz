@@ -51,7 +51,6 @@ class HealthCheck:
             ["type"],
         )
 
-
         self.app.add_routes(
             [
                 web.get("/health", self.health_check),
@@ -110,8 +109,6 @@ class HealthCheck:
         """
         self.request_counter.labels(endpoint="metrics").inc()
         try:
-
-          
             job_stats = await self.db_manager.get_job_stats()
             data = {
                 "metrics": {
@@ -130,7 +127,6 @@ class HealthCheck:
                 },
                 status=500,
             )
-
 
     def _get_memory_usage(self) -> dict:
         """

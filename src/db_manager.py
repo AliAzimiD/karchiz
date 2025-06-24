@@ -2,12 +2,12 @@ import json
 import time
 import traceback
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Union
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import asyncpg
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from pathlib import Path
 
 from .log_setup import get_logger
 

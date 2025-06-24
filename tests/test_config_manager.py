@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 from src.config_manager import ConfigManager
 
 
