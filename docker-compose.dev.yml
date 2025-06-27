@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   scraper:
-    build: 
+    build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/scraper.Dockerfile
     container_name: job_scraper_dev
     volumes:
       - .:/app

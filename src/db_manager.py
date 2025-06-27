@@ -259,6 +259,29 @@ class DatabaseManager:
                 """
             )
 
+            await conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {self.schema}.scrape_batches (
+                    id TEXT PRIMARY KEY,
+                    started_at TIMESTAMP NOT NULL,
+                    completed_at TIMESTAMP,
+                    status TEXT NOT NULL,
+                    pages_processed INT DEFAULT 0
+                )
+                """
+            )
+
+            await conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {self.schema}.backfill_history (
+                    id SERIAL PRIMARY KEY,
+                    start_page INT,
+                    end_page INT,
+                    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+
     def _deduplicate_jobs(self, jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Return a list of jobs with unique IDs."""
         deduped: Dict[str, Dict[str, Any]] = {}
@@ -697,6 +720,49 @@ class DatabaseManager:
                 )
         except Exception as e:
             logger.error(f"Failed to record batch failure for {batch_id}: {str(e)}")
+
+    async def start_scrape(self, run_id: str) -> None:
+        if not self.pool:
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                f"""
+                INSERT INTO {self.schema}.scrape_batches (id, started_at, status)
+                VALUES ($1, $2, 'running')
+                ON CONFLICT DO NOTHING
+                """,
+                run_id,
+                datetime.now(),
+            )
+
+    async def complete_scrape(self, run_id: str, pages: int) -> None:
+        if not self.pool:
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                f"""
+                UPDATE {self.schema}.scrape_batches
+                SET completed_at = $2, status = 'completed', pages_processed = $3
+                WHERE id = $1
+                """,
+                run_id,
+                datetime.now(),
+                pages,
+            )
+
+    async def fail_scrape(self, run_id: str, error: str) -> None:
+        if not self.pool:
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                f"""
+                UPDATE {self.schema}.scrape_batches
+                SET completed_at = $2, status = 'failed'
+                WHERE id = $1
+                """,
+                run_id,
+                datetime.now(),
+            )
 
     async def get_job_count(self) -> int:
         """
