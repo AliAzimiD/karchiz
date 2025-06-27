@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: karchiz-postgres
+spec:
+  serviceName: karchiz-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: karchiz-db
+  template:
+    metadata:
+      labels:
+        app: karchiz-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        envFrom:
+        - secretRef:
+            name: db-secrets
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi

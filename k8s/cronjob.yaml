@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: karchiz-backfill
+spec:
+  schedule: "0 */6 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backfill
+            image: ghcr.io/aliazimid/karchiz-scraper:latest
+            command: ["python", "-m", "src.backfill", "1", "100"]
