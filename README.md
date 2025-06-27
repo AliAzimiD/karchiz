@@ -86,21 +86,29 @@ kubectl apply -f k8s/
 
 Leader election requires RBAC permissions to create a Lease.
 
-### Ubuntu 22.04 VPS Deployment
-The stack runs well on a small VPS using Docker Compose. After provisioning an
-Ubuntu 22.04 machine, install Docker and clone the repository:
+### Deploying on Ubuntu 22.04 VPS
+Spin up an Ubuntu 22.04 server and install Docker:
 
 ```bash
-sudo apt update && sudo apt install -y git docker.io docker-compose
+sudo apt update
+sudo apt install -y git docker.io docker-compose
 sudo systemctl enable --now docker
-git clone https://github.com/AliAzimiD/karchiz.git && cd karchiz
+```
+
+Clone the repository and start the stack:
+
+```bash
+git clone https://github.com/AliAzimiD/karchiz.git
+cd karchiz
 make build
 make start
 ```
 
-Set the `SERVER_NAME` and other environment variables as needed for your server.
-Superset will be reachable at `http://<SERVER_NAME>` and the scraper metrics at
-`http://<SERVER_NAME>:8080/metrics`.
+Ensure ports **8088** (Superset) and **8080** (metrics) are open in your firewall.
+Adjust environment variables in `.env` or `docker-compose.yml` to match your
+server settings. Once the containers are up, visit
+`http://<SERVER_IP>:8088` for Superset and
+`http://<SERVER_IP>:8080/metrics` for Prometheus scraping.
 
 ### Local Development
 1. `python -m venv venv && source venv/bin/activate`
