@@ -91,6 +91,7 @@ Spin up an Ubuntu 22.04 server and install Docker:
 
 ```bash
 sudo apt update
+
 sudo apt install -y git docker.io docker-compose-plugin
 sudo systemctl enable --now docker
 ```
