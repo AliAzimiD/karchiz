@@ -71,25 +71,20 @@ filters records. `_process_jobs()` writes the cleaned jobs to the database via
 
 ## Setup & Installation
 
-### Docker Deployment
-1. `make build`  
-2. `make start`
-
-The scraper container runs automatically, uses a cron job to schedule repeated scraping, and logs to `job_data/logs/`.
-An additional `nginx` service proxies HTTP traffic from a configurable port
-(default `80`) to Superset (port specified by `SUPERSET_PORT`, default
-`8088`) and exposes the scraper's `/metrics` and `/health` endpoints from the
-port defined by `SCRAPER_PORT` (default `8080`). Set the `SERVER_NAME`
-environment variable and optionally override these port variables when running
-`docker-compose`, e.g.:
-
-```bash
-SERVER_NAME=karchiz.upgrade4u.space SUPERSET_PORT=8088 SCRAPER_PORT=8080 \
-NGINX_PORT=80 make start
+### Docker & Kubernetes Deployment
+Container images live under `docker/`.
+For local compose use:
+```
+make build
+make start
 ```
 
-Once started, visit `http://<SERVER_NAME>` for the Superset UI and
-`/metrics` or `/health` for monitoring endpoints.
+For Kubernetes:
+```
+kubectl apply -f k8s/
+```
+
+Leader election requires RBAC permissions to create a Lease.
 
 ### Ubuntu 22.04 VPS Deployment
 The stack runs well on a small VPS using Docker Compose. After provisioning an

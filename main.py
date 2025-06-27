@@ -6,6 +6,7 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
+import uuid
 from pathlib import Path
 from typing import Any, Dict
 
@@ -226,6 +227,7 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
     db_manager: DatabaseManager = resources["db_manager"]
     config: Dict[str, Any] = resources["config"]
     graceful_exit: GracefulExit = resources["graceful_exit"]
+    run_id = str(uuid.uuid4())
 
     start_time = time.time()
     stats = {
@@ -246,6 +248,8 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
             save_dir=config["scraper"]["save_dir"],
             db_manager=db_manager,
         )
+
+        await db_manager.start_scrape(run_id)
 
         init_success = await scraper.initialize()
         if not init_success:
@@ -281,12 +285,16 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
                 stats["status"] = "failed"
                 stats["errors"] += 1
                 stats["metadata"]["error"] = str(e)
+                await db_manager.fail_scrape(run_id, str(e))
+        else:
+            await db_manager.complete_scrape(run_id, result.get("pages_processed", 0))
 
     except Exception as e:
         logger.error(f"Critical error in run_scraper: {str(e)}")
         stats["status"] = "failed"
         stats["errors"] += 1
         stats["metadata"]["critical_error"] = str(e)
+        await db_manager.fail_scrape(run_id, str(e))
         return False
     finally:
         # Record total run time and store in DB
