@@ -111,7 +111,9 @@ services:
       start_period: 30s
 
   superset:
-    image: apache/superset:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.superset
     container_name: superset_app
     environment:
       - ADMIN_PASSWORD=admin
@@ -123,7 +125,6 @@ services:
       - APP_DB_PASSWORD_FILE=/run/secrets/db_password
       # Optional full SQLAlchemy URI. Overrides the individual settings above if provided
       - APP_DB_URI=${APP_DB_URI:-}
-      - PIP_ADDITIONAL_REQUIREMENTS=psycopg2-binary
 
     depends_on:
       db:
