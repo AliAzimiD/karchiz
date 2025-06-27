@@ -92,9 +92,19 @@ Spin up an Ubuntu 22.04 server and install Docker:
 ```bash
 sudo apt update
 
-sudo apt install -y git docker.io docker-compose-plugin
+sudo apt install -y git docker.io
 sudo systemctl enable --now docker
 ```
+
+Install the Docker Compose V2 plugin manually:
+
+```bash
+mkdir -p ~/.docker/cli-plugins
+curl -SL https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+chmod +x ~/.docker/cli-plugins/docker-compose
+docker compose version
+```
+
 
 Clone the repository and start the stack:
 
