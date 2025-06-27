@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karchiz-scraper
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: karchiz
+  template:
+    metadata:
+      labels:
+        app: karchiz
+    spec:
+      serviceAccountName: karchiz
+      containers:
+        - name: scraper
+          image: ghcr.io/aliazimid/karchiz-scraper:latest
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080

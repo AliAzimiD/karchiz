@@ -1,0 +1,16 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build -f docker/scraper.Dockerfile -t ghcr.io/aliazimid/karchiz-scraper:${{ github.ref_name }} .
+      - run: docker push ghcr.io/aliazimid/karchiz-scraper:${{ github.ref_name }}
+      - uses: azure/setup-kubectl@v3
+      - run: kubectl apply -f k8s/
