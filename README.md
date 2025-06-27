@@ -91,7 +91,7 @@ Spin up an Ubuntu 22.04 server and install Docker:
 
 ```bash
 sudo apt update
-sudo apt install -y git docker.io docker-compose
+sudo apt install -y git docker.io docker-compose-plugin
 sudo systemctl enable --now docker
 ```
 
@@ -159,7 +159,7 @@ This project integrates [Apache Superset](https://superset.apache.org/) for expl
 PostgreSQL data. Start the service with:
 
 ```bash
-docker-compose up -d superset
+docker compose up -d superset
 ```
 
 The `superset` service executes `superset-init.sh` which upgrades the Superset
