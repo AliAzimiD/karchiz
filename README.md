@@ -71,41 +71,44 @@ filters records. `_process_jobs()` writes the cleaned jobs to the database via
 
 ## Setup & Installation
 
-### Docker Deployment
-1. `make build`  
-2. `make start`
-
-The scraper container runs automatically, uses a cron job to schedule repeated scraping, and logs to `job_data/logs/`.
-An additional `nginx` service proxies HTTP traffic from a configurable port
-(default `80`) to Superset (port specified by `SUPERSET_PORT`, default
-`8088`) and exposes the scraper's `/metrics` and `/health` endpoints from the
-port defined by `SCRAPER_PORT` (default `8080`). Set the `SERVER_NAME`
-environment variable and optionally override these port variables when running
-`docker-compose`, e.g.:
-
-```bash
-SERVER_NAME=karchiz.upgrade4u.space SUPERSET_PORT=8088 SCRAPER_PORT=8080 \
-NGINX_PORT=80 make start
+### Docker & Kubernetes Deployment
+Container images live under `docker/`.
+For local compose use:
 ```
-
-Once started, visit `http://<SERVER_NAME>` for the Superset UI and
-`/metrics` or `/health` for monitoring endpoints.
-
-### Ubuntu 22.04 VPS Deployment
-The stack runs well on a small VPS using Docker Compose. After provisioning an
-Ubuntu 22.04 machine, install Docker and clone the repository:
-
-```bash
-sudo apt update && sudo apt install -y git docker.io docker-compose
-sudo systemctl enable --now docker
-git clone https://github.com/AliAzimiD/karchiz.git && cd karchiz
 make build
 make start
 ```
 
-Set the `SERVER_NAME` and other environment variables as needed for your server.
-Superset will be reachable at `http://<SERVER_NAME>` and the scraper metrics at
-`http://<SERVER_NAME>:8080/metrics`.
+For Kubernetes:
+```
+kubectl apply -f k8s/
+```
+
+Leader election requires RBAC permissions to create a Lease.
+
+### Deploying on Ubuntu 22.04 VPS
+Spin up an Ubuntu 22.04 server and install Docker:
+
+```bash
+sudo apt update
+sudo apt install -y git docker.io docker-compose-plugin
+sudo systemctl enable --now docker
+```
+
+Clone the repository and start the stack:
+
+```bash
+git clone https://github.com/AliAzimiD/karchiz.git
+cd karchiz
+make build
+make start
+```
+
+Ensure ports **8088** (Superset) and **8080** (metrics) are open in your firewall.
+Adjust environment variables in `.env` or `docker-compose.yml` to match your
+server settings. Once the containers are up, visit
+`http://<SERVER_IP>:8088` for Superset and
+`http://<SERVER_IP>:8080/metrics` for Prometheus scraping.
 
 ### Local Development
 1. `python -m venv venv && source venv/bin/activate`
@@ -156,7 +159,7 @@ This project integrates [Apache Superset](https://superset.apache.org/) for expl
 PostgreSQL data. Start the service with:
 
 ```bash
-docker-compose up -d superset
+docker compose up -d superset
 ```
 
 The `superset` service executes `superset-init.sh` which upgrades the Superset

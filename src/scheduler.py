@@ -6,6 +6,7 @@ from typing import Optional
 
 from .log_setup import get_logger
 from .scraper import JobScraper
+from .election import LeaderElection
 
 
 class JobScraperScheduler:
@@ -19,6 +20,7 @@ class JobScraperScheduler:
         config_path: str = "config/api_config.yaml",
         base_dir: str = "job_data",
         interval_minutes: int = 30,
+        use_leader_election: bool = False,
     ) -> None:
         """
         Initialize the scheduler with the desired interval and config paths.
@@ -32,11 +34,20 @@ class JobScraperScheduler:
         self.base_dir = Path(base_dir)
         self.interval_minutes = interval_minutes
         self.logger = get_logger("JobScraperScheduler")
+        self.use_leader_election = use_leader_election
+        self.leader: Optional[LeaderElection] = None
 
     async def run(self) -> None:
-        """
-        Continuously run the scraper in a loop, pausing interval_minutes between each run.
-        """
+        """Run the scraper in a loop with optional leader election."""
+        if self.use_leader_election:
+            self.leader = LeaderElection()
+            acquired = await self.leader.acquire()
+            if not acquired:
+                self.logger.info("Leader not acquired; watching for changes")
+                await self.leader.watch()
+            else:
+                self.logger.info("Leader acquired")
+                asyncio.create_task(self.leader.hold())
         while True:
             try:
                 self.logger.info("Starting scraping run in scheduler.")

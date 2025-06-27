@@ -4,7 +4,7 @@ services:
   scraper:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/scraper.Dockerfile
     container_name: job_scraper
     volumes:
       - ./job_data:/app/job_data
@@ -30,14 +30,6 @@ services:
     ports:
       - "8081:8081"
       - "${SCRAPER_PORT:-8080}:8080"
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1'
-        reservations:
-          memory: 1G
-          cpus: '0.5'
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -68,12 +60,6 @@ services:
       - db_password
     ports:
       - "5432:5432"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jobuser -d jobsdb"]
@@ -113,7 +99,7 @@ services:
   superset:
     build:
       context: .
-      dockerfile: Dockerfile.superset
+      dockerfile: docker/superset.Dockerfile
     container_name: superset_app
     environment:
       - ADMIN_PASSWORD=admin
