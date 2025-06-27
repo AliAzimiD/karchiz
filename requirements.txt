@@ -23,6 +23,7 @@ ujson==5.9.0  # Fast JSON parsing
 aiologger==0.7.0  # Async logging
 backoff==2.2.1  # Exponential backoff
 cachetools==5.3.2  # Caching utilities
+aiogram==3.20.0  # Telegram Bot API framework
 
 # Development dependencies (optional)
 pytest==7.4.4

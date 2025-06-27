@@ -7,7 +7,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -15,6 +15,7 @@ from src.db_manager import DatabaseManager
 from src.health import HealthCheck
 from src.log_setup import get_logger  # Centralized logger
 from src.scraper import JobScraper
+from src.telegram_bot import TelegramNotifier
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -151,6 +152,10 @@ def load_config() -> Dict[str, Any]:
             "max_retries": 3,
             "retry_delay": 5,
         },
+        "telegram": {
+            "bot_token": "",
+            "chat_id": 0,
+        },
     }
 
     # Attempt to load from a local config file if it exists
@@ -209,6 +214,12 @@ def load_config() -> Dict[str, Any]:
     if os.getenv("SAVE_DIR"):
         config["scraper"]["save_dir"] = os.getenv("SAVE_DIR")
 
+    # Telegram bot settings
+    if os.getenv("TELEGRAM_TOKEN"):
+        config["telegram"]["bot_token"] = os.getenv("TELEGRAM_TOKEN")
+    if os.getenv("TELEGRAM_CHAT_ID"):
+        config["telegram"]["chat_id"] = int(os.getenv("TELEGRAM_CHAT_ID"))
+
     return config
 
 
@@ -226,6 +237,12 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
     db_manager: DatabaseManager = resources["db_manager"]
     config: Dict[str, Any] = resources["config"]
     graceful_exit: GracefulExit = resources["graceful_exit"]
+
+    notifier: Optional[TelegramNotifier] = None
+    tg_conf = config.get("telegram", {})
+    if tg_conf.get("bot_token") and tg_conf.get("chat_id"):
+        notifier = TelegramNotifier(tg_conf["bot_token"], tg_conf["chat_id"], logger)
+        await notifier.send_message("Scraper run started")
 
     start_time = time.time()
     stats = {
@@ -299,6 +316,12 @@ async def run_scraper(resources: Dict[str, Any]) -> bool:
         logger.info(
             f"Scraper run {stats['status']} in {stats['processing_time']:.2f} seconds"
         )
+
+        if notifier:
+            await notifier.send_message(
+                f"Scraper {stats['status']} - {stats['total_jobs_scraped']} jobs in {stats['processing_time']:.1f}s"
+            )
+            await notifier.close()
 
     return stats["status"] == "completed"
 

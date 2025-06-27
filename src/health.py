@@ -1,14 +1,10 @@
-import asyncio
-import json
-import logging
 import os
 from datetime import datetime
-from typing import Any, Optional, Tuple
+from typing import Tuple
 
-import aiohttp
 import psutil
 from aiohttp import web
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, generate_latest
+from prometheus_client import Counter, Gauge
 
 from .db_manager import DatabaseManager
 from .log_setup import get_logger

@@ -381,7 +381,7 @@ class JobScraper:
                     if len(self.failed_requests) >= self.scraper_config.get(
                         "max_retries", 5
                     ):
-                        self.logger.error(f"Too many failed requests, stopping.")
+                        self.logger.error("Too many failed requests, stopping.")
                         break
                     await asyncio.sleep(self.scraper_config.error_sleep_time)
 

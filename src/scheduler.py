@@ -1,8 +1,6 @@
 import asyncio
-import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .log_setup import get_logger
 from .scraper import JobScraper
