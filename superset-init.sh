@@ -2,9 +2,14 @@
 set -e
 
 # Install additional Python packages if specified (e.g., database drivers)
+PIP_BIN="/app/.venv/bin/pip"
+if [ ! -x "$PIP_BIN" ]; then
+  PIP_BIN="$(command -v pip)"
+fi
+
 if [ -n "${PIP_ADDITIONAL_REQUIREMENTS:-}" ]; then
   echo "Installing additional Python packages: ${PIP_ADDITIONAL_REQUIREMENTS}"
-  pip install --no-cache-dir ${PIP_ADDITIONAL_REQUIREMENTS}
+  "$PIP_BIN" install --no-cache-dir ${PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 # Initialize the database
