@@ -3,7 +3,7 @@ FROM apache/superset:latest
 # Install the Postgres driver inside Superset's virtualenv
 USER root
 RUN pip install --no-cache-dir psycopg2-binary \
-    && su -s /bin/sh superset -c "pip install --no-cache-dir psycopg2-binary"
+    && su -s /bin/sh superset -c "pip install --user --no-cache-dir psycopg2-binary"
 
 USER superset
 CMD ["/bin/bash", "/app/superset-init.sh"]

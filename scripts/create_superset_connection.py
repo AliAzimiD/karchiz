@@ -1,6 +1,20 @@
 import logging
 import os
 
+try:
+    import psycopg2  # noqa: F401
+except ImportError:
+    import sys
+    print(
+        "ERROR: psycopg2-binary is installed but not available to the current Python environment.\n"
+        "Try running:\n"
+        "  pip install --user psycopg2-binary\n"
+        "Or ensure your PYTHONPATH includes the user site-packages directory.\n"
+        "If running inside a container, restart the container after installing.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from superset.app import create_app
@@ -25,12 +39,19 @@ logger = get_logger("superset_setup")
 
 
 def verify_database(uri: str) -> bool:
-    """Check that the PostgreSQL database is reachable."""
+    """Check that the PostgreSQL database is reachable and driver is installed."""
     try:
         engine = create_engine(uri)
         with engine.connect() as connection:
             connection.execute("SELECT 1")
         return True
+    except ModuleNotFoundError as exc:
+        logger.error(
+            "Database driver not found: %s. "
+            "Make sure psycopg2 is installed in your Superset environment.",
+            exc.name,
+        )
+        return False
     except SQLAlchemyError as exc:
         logger.error(f"Unable to connect to database: {exc}")
         return False
