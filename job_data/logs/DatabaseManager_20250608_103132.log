@@ -1,3 +1,0 @@
-2025-06-08 10:31:32,965 [INFO] DatabaseManager - Logger DatabaseManager initialized at level INFO. Log file: job_data/logs/DatabaseManager_20250608_103132.log
-2025-06-08 10:31:34,547 [INFO] DatabaseManager - Connected to database: PostgreSQL 15.13 on x86_64-pc-linux-musl, compiled by gcc (Alpine 14.2.0) 14.2.0, 64-bit
-2025-06-08 10:31:34,572 [INFO] DatabaseManager - Database connection established and tables verified

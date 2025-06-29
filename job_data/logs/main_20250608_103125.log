@@ -1,3 +1,0 @@
-2025-06-08 10:31:25,794 [INFO] main - Logger main initialized at level INFO. Log file: job_data/logs/main_20250608_103125.log
-2025-06-08 10:31:26,999 [ERROR] main - Failed to initialize database connection
-2025-06-08 10:31:26,999 [ERROR] main - Error during startup: Database initialization failed

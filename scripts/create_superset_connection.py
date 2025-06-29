@@ -47,7 +47,7 @@ with app.app_context():
         port = os.environ.get("APP_DB_PORT", "5432")
         name = os.environ.get("APP_DB_NAME", "jobsdb")
         user = os.environ.get("APP_DB_USER", "jobuser")
-        password = os.environ.get("APP_DB_PASSWORD", "")
+        password = os.environ.get("APP_DB_PASSWORD", "your_secure_db_password")
         uri = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
     else:
         name = os.environ.get("APP_DB_NAME", "jobsdb")

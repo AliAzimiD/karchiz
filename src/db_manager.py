@@ -154,6 +154,30 @@ class DatabaseManager:
             if sql_file.exists():
                 await self._execute_sql_file(conn, sql_file)
 
+            # --- Ensure job_boards and companies tables exist ---
+            await conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {self.schema}.companies (
+                    id BIGINT PRIMARY KEY,
+                    title_en TEXT,
+                    title_fa TEXT,
+                    about TEXT,
+                    company_logo TEXT
+                )
+                """
+            )
+            await conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {self.schema}.job_boards (
+                    id INT PRIMARY KEY,
+                    title_en TEXT,
+                    title_fa TEXT,
+                    organization_color TEXT
+                )
+                """
+            )
+            # --- end addition ---
+
             # Main jobs table.
             await conn.execute(
                 f"""
