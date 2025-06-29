@@ -16,5 +16,5 @@ def test_extract_tables(tmp_path):
     assert len(jobs) == 1
     assert jobs.loc[0, "job_id"] == 1
     assert len(companies) == 1
-    assert companies.loc[0, "company_id"] == 10
+    assert companies.loc[0, "company_id"] == "10"
     assert locations.empty

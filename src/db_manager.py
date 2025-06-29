@@ -487,7 +487,7 @@ class DatabaseManager:
         tags = job.get("tags", []) if isinstance(job.get("tags"), list) else []
 
         def tag_present(text: str) -> int:
-            return 1 if text in tags else 0
+            return 1 if text in tags : 0
 
         primary_city = None
         if isinstance(job.get("locations"), list) and job["locations"]:
@@ -866,3 +866,16 @@ class DatabaseManager:
         if self.engine:
             self.engine.dispose()
         logger.info("Database connections closed")
+
+def normalize_company_id(record):
+    """
+    Ensure company_id is always a string in the given record.
+    """
+    if 'company_id' in record and record['company_id'] is not None:
+        record['company_id'] = str(record['company_id'])
+    return record
+
+# Use this function wherever records are processed before DB operations, e.g.:
+# records = [normalize_company_id(r) for r in records]
+# or
+# record = normalize_company_id(record)

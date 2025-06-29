@@ -28,6 +28,8 @@ def extract_tables(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Dat
         job_id = row.get("id")
         company = row.get("companyDetailsSummary") or {}
         company_id = company.get("id")
+        if company_id is not None:
+            company_id = str(company_id)
 
         job_records.append(
             {
