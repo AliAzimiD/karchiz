@@ -347,30 +347,37 @@ class DatabaseManager:
         """Stage normalized job dicts into the temporary table."""
         columns = list(values[0].keys())
         await conn.execute(f"TRUNCATE TABLE {self.schema}.jobs_temp")
-        records = [[row_dict[c] for c in columns] for row_dict in values]
-
-        for row_index, record in enumerate(records):
-            for col_index, cell_value in enumerate(record):
-                if columns[col_index] in [
-                    "id",
-                    "title",
-                    "url",
-                    "gender",
-                    "job_board_title_en",
-                    "job_board_title_fa",
-                    "salary",
-                    "company_id",
-                    "category",
-                    "parent_cat",
-                    "sub_cat",
-                    "primary_city",
-                    "work_type",
-                ]:
+        # Coerce all values to str or None for string columns
+        string_columns = [
+            "id",
+            "title",
+            "url",
+            "gender",
+            "job_board_title_en",
+            "job_board_title_fa",
+            "salary",
+            "company_id",
+            "category",
+            "parent_cat",
+            "sub_cat",
+            "primary_city",
+            "work_type",
+        ]
+        records = []
+        for row_index, row_dict in enumerate(values):
+            record = []
+            for col_index, c in enumerate(columns):
+                cell_value = row_dict[c]
+                if c in string_columns:
                     if cell_value is not None and not isinstance(cell_value, str):
                         logger.error(
                             f"DEBUG: Potential mismatch at record {row_index}, "
-                            f"column '{columns[col_index]}' - found {type(cell_value).__name__} value: {cell_value}"
+                            f"column '{c}' - found {type(cell_value).__name__} value: {cell_value}"
                         )
+                        # Coerce to str
+                        cell_value = str(cell_value)
+                record.append(cell_value)
+            records.append(record)
 
         await conn.copy_records_to_table(
             table_name="jobs_temp",

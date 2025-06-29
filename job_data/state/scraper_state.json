@@ -1,26 +1,7 @@
 {
-  "last_page_scraped": 440,
-  "total_jobs_scraped": 22000,
-  "last_batch_num": 22,
-  "last_run": "2025-06-29T08:43:58.493240",
-  "last_updated": "2025-06-29T08:43:58.493713",
-  "last_error": {
-    "page": 2001,
-    "error": "500, message='Internal Server Error', url=URL('https://api.karbord.io/api/v1/Candidate/JobPost/GetList')",
-    "timestamp": "2025-06-29T08:31:58.599520"
-  },
-  "failed_requests": [
-    2001,
-    2001,
-    2001,
-    2001,
-    2001
-  ],
-  "last_run_stats": {
-    "total_jobs_scraped": 100000,
-    "pages_processed": 2000,
-    "failed_requests": 5,
-    "end_time": "2025-06-29T08:32:00.604389"
-  },
-  "scraping_complete": true
+  "last_page_scraped": 260,
+  "total_jobs_scraped": 13000,
+  "last_batch_num": 13,
+  "last_run": "2025-06-29T08:55:23.718355",
+  "last_updated": "2025-06-29T08:55:23.719043"
 }
